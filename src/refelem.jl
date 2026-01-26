@@ -1,14 +1,12 @@
 # NOTE: CHANGE PACKAGING OF SURFACE TERMS EVENTUALLY.
 
-using SparseArrays
-
 abstract type AbstractRefElem end
 
 struct RefElemStd <: AbstractRefElem
     shape::String # type of element
 
     dim::Integer # dimension of element
-    Nfaces::Integer
+    Nfaces::Integer # total number of faces
     Nbnodes::Integer # total number of basis nodes
     Nqnodes::Integer # total number of quadrature nodes
     Nfnodes::Integer # number of face nodes on EACH face
@@ -20,18 +18,17 @@ struct RefElemStd <: AbstractRefElem
     bnodes::Matrix{Float64}
     fnodes::Matrix{Float64}
 
-    nref::AbstractArray # reference normal vectors
+    nref::Vector{Vector{Float64}} # reference normal vectors
 
-    chiq::AbstractArray # volume quadrature Vandermonde matrix
-    chif::AbstractArray # face quadrature Vandermonde matrix
-    wq::AbstractArray # volume quadrature weights
-    wf::AbstractArray # face quadrature weights
+    chiq::Matrix{Float64} # volume quadrature Vandermonde matrix
+    chif::Matrix{Float64} # face quadrature Vandermonde matrix
+    wq::Vector{Float64} # volume quadrature weights
 
-    M::AbstractArray # reference mass matrix
-    bh::AbstractArray # boundary integration weights times ref normal
-    Dh::AbstractArray # reference differentiation matrix in each direction
-    Ph::AbstractArray # reference projection matrix
-    LIFT::AbstractArray # lifting operator in each direction
+    M::Matrix{Float64}# reference mass matrix
+    bh::Vector{Vector{Float64}} # boundary integration weights times ref normal
+    Dh::Vector{Matrix{Float64}} # reference differentiation matrix in each direction
+    Ph::Matrix{Float64} # reference projection matrix
+    LIFT::Vector{Matrix{Float64}} # lifting operator in each direction
 
     function RefElemStd(bnodestype::AbstractNodes, qnodestype::AbstractNodes, fnodestype::Fnodes)
         shape = fnodestype.refshape
@@ -51,11 +48,12 @@ struct RefElemStd <: AbstractRefElem
         chiq, wq, dchi, bnodes = extract_volume_operators(bnodestype, qnodestype)
         chif, wf, fnodes = extract_face_operators(bnodestype, fnodestype)
 
-        M = chiq' * Diagonal(wq) * chiq
         fnodes = vcat([fnodes[iface] for iface in 1:Nfaces]...)
-        chif = vcat([sparse(chif[iface]) for iface in 1:Nfaces]...) # VERY INEFFICIENT
+        chif = vcat([chif[iface] for iface in 1:Nfaces]...) # VERY INEFFICIENT
         bh = [vcat([wf[iface] .* nref[iface][idim] for iface in 1:Nfaces]...) for idim=1:dim]
-        Ph = sparse(M \ chiq' * Diagonal(wq))
+
+        M = chiq' * Diagonal(wq) * chiq
+        Ph = (M \ chiq' * Diagonal(wq))
         Dh = (d -> M \ (chiq' * Diagonal(wq)) * d).(dchi)
         LIFT = (b -> (M \ chif') * Diagonal(b)).(bh)
 
@@ -80,11 +78,116 @@ struct RefElemStd <: AbstractRefElem
             chiq,
             chif,
             wq,
-            wf,
 
             M,
             bh,
             Dh,
+            Ph,
+            LIFT
+        )
+    end
+end
+
+struct RefElemSBP <: AbstractRefElem
+    shape::String # type of element
+
+    dim::Integer # dimension of element
+    Nfaces::Integer # total number of faces
+    Nbnodes::Integer # total number of basis nodes
+    Nqnodes::Integer # total number of quadrature nodes
+    Nfnodes::Integer # number of face nodes on EACH face
+
+    bnodestype::AbstractNodes
+    qnodestype::AbstractNodes
+    fnodestype::Fnodes
+
+    bnodes::Matrix{Float64}
+    fnodes::Matrix{Float64}
+
+    nref::Vector{Vector{Float64}} # reference normal vectors
+
+    chiq::Matrix{Float64} # volume quadrature Vandermonde matrix
+    chif::Matrix{Float64} # face quadrature Vandermonde matrix
+    wq::Vector{Float64} # volume quadrature weights
+    wf::Vector{Float64} # face quadrature weights
+
+    M::Matrix{Float64} # reference mass matrix
+    SS::Vector{Matrix{Float64}} # skew symmetric operator
+    MVF::Matrix{Float64} # M^-1 [chiq; chif]^T
+
+    bh::Vector{Vector{Float64}} # boundary integration weights times ref normal
+    Ph::Matrix{Float64} # reference projection matrix
+    LIFT::Vector{Matrix{Float64}} # lifting operator in each direction
+
+    function RefElemSBP(bnodestype::AbstractNodes, qnodestype::AbstractNodes, fnodestype::Fnodes)
+        shape = fnodestype.refshape
+
+        dim = bnodestype.dim
+        Nfaces = numfaces(fnodestype)
+        Nbnodes = numnodes(bnodestype)
+        Nqnodes = numnodes(qnodestype)
+        Nfnodes = numnodes(fnodestype.nodes)
+
+        nref = unitnormals(fnodestype)
+
+        bnodestype = bnodestype
+        qnodestype = qnodestype
+        fnodestype = fnodestype
+
+        chiq, wq, dchi, bnodes = extract_volume_operators(bnodestype, qnodestype)
+        chif, wf, fnodes = extract_face_operators(bnodestype, fnodestype)
+
+        fnodes = vcat([fnodes[iface] for iface in 1:Nfaces]...)
+        chif = vcat([chif[iface] for iface in 1:Nfaces]...) # VERY INEFFICIENT
+        bh = [vcat([wf[iface] .* nref[iface][idim] for iface in 1:Nfaces]...) for idim=1:dim]
+
+        M = chiq' * Diagonal(wq) * chiq
+        Ph = M \ chiq' * Diagonal(wq)
+
+        LIFT = (b -> (M \ chif') * Diagonal(b)).(bh)
+        MVF = M \ [chiq ; chif]'
+
+        # We finally build the skew symmetric SBP operator
+        SS = Vector{Matrix{Float64}}(undef, dim)
+        for idim in 1:dim
+            SSi = zeros((Nqnodes + Nfnodes * Nfaces, Nqnodes + Nfnodes * Nfaces))
+
+            Q = Ph' * chiq' * diag(wq) * dchi[idim] * Ph
+            EB = (chif * Ph)' * Diagonal(bh[idim])
+
+            SSi[1:Nqnodes, 1:Nqnodes] = Q - Q'
+            SSi[1:Nqnodes, Nqnodes+1:end] = -EB'
+            SSi[Nqnodes+1:end, 1:Nqnodes] = EB
+
+            SS[idim] = SSi
+        end
+
+        new(
+            shape,
+
+            dim,
+            Nfaces,
+            Nbnodes,
+            Nqnodes,
+            Nfnodes,
+
+            bnodestype,
+            qnodestype,
+            fnodestype,
+
+            bnodes,
+            fnodes,
+
+            nref,
+
+            chiq,
+            chif,
+            wq,
+
+            M,
+            SS,
+            MVF,
+            bh,
             Ph,
             LIFT
         )

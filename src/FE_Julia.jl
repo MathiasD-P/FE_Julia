@@ -1,5 +1,15 @@
 module FE_Julia
+    using SparseArrays
+    using LinearAlgebra
+    import CSV
+    using Plots
+
+    import FastGaussQuadrature
+    
     export parameters
+    export RefElemStd, RefElemSBP
+    export DGStd, DGFluxDiff, DGArtVisc, DGAddRes, DGEntFilt
+    export ODE_solver
     export set_up_and_solve
 
     include("mesh.jl")

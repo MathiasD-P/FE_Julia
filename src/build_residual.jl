@@ -45,14 +45,6 @@ function build_residual(u, t, BChandler::Dict, dg::DGEntFilt, param::parameters)
 end
 
 function block_matmul(block, myvec, N::Integer) # Block * v
-    # prod = Matrix{Float64}(undef, size(block,1) * N, size(vec,2))
-    # @inbounds @simd for i = 1:N
-    #     prod[size(block,1)*(i-1)+1:size(block,1)*i,:] = block * vec[size(block,2)*(i-1)+1:size(block,2)*i,:]
-    # end
-
-    # return prod
-
-
     Nrowv, Ncolv = size(myvec)
     Nrowb, Ncolb = size(block)
 

@@ -2,8 +2,6 @@
 # Everything concerning the problem's physics
 #####################################################################
 
-using LinearAlgebra
-
 # THE SOLUTION IS ALWAYS A MATRIX OF SIZE (Nstate, NDOF)
 
 #####################################################################
@@ -138,6 +136,13 @@ function eval_cvar(v, param::parameters)
 
         return u
     end
+end
+
+#####################################################################
+# Compute Entropy
+#####################################################################
+
+function compute_entropy(u, param::parameters)
 end
 
 #####################################################################

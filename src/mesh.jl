@@ -2,8 +2,6 @@
 # Create, manipulate and store meshes for High-order FE purposes
 #####################################################################
 
-using LinearAlgebra
-
 abstract type AbstractMesh end
 
 """

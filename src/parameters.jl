@@ -4,8 +4,6 @@
 
 # Incomplete
 
-import CSV
-
 mutable struct parameters
     pdetype::Union{String,Nothing}
     dim::Union{Integer,Nothing}

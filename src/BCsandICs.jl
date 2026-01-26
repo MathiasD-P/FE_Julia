@@ -1,5 +1,3 @@
-using SparseArrays
-
 function initialize_states(dg::DG, param::parameters, pts = nothing)
     if isnothing(pts)
         pts = dg.bpts

@@ -6,10 +6,6 @@
 # AT SOME POINT, WILL HAVE TO SWITCH TO LAZY ALLOCATIONS OF
 #####################################################################
 
-import FastGaussQuadrature
-
-using LinearAlgebra
-
 abstract type AbstractNodes end
 
 mutable struct Tensorprod_nodes <: AbstractNodes

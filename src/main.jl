@@ -1,5 +1,3 @@
-using Plots
-
 function run(param_file)
     param = parse_parameters(param_file)
 
