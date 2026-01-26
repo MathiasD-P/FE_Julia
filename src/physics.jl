@@ -142,7 +142,14 @@ end
 # Compute Entropy
 #####################################################################
 
-function compute_entropy(u, param::parameters)
+function compute_local_entropy(u, param::parameters)
+    if param.pdetype == "LinAdv"
+        return 0.5 .* u.^2
+    elseif param.pdetype == "Burgers"
+        return 0.5 .* u.^2
+    elseif param.pde.type == "EulerPerfGas"
+        return cvar_entropy(u, param)
+    end
 end
 
 #####################################################################

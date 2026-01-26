@@ -41,3 +41,17 @@ function ODE_solver(u0, BChandler::Dict, dg::DG, param::parameters)
         return (u, current_time)
     end
 end
+
+function compute_total_entropy(u, dg::DG, param::parameters)
+    if dg.mesh isa LMesh
+        s = compute_local_entropy(u, param)
+        s = block_matmul(dg.M, s, dg.Nel)
+
+        for ielem = 1:dg.mesh.Nel
+            index = 1+dg.refelem.Nbnodes*(ielem-1):dg.refelem.Nbnodes*ielem
+            @views s[index,:] .= s[index,:] .* dg.mesh.J[ielem]
+        end
+
+        return sum(s)
+    end
+end
