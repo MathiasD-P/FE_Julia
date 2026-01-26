@@ -109,7 +109,6 @@ struct RefElemSBP <: AbstractRefElem
     chiq::Matrix{Float64} # volume quadrature Vandermonde matrix
     chif::Matrix{Float64} # face quadrature Vandermonde matrix
     wq::Vector{Float64} # volume quadrature weights
-    wf::Vector{Float64} # face quadrature weights
 
     M::Matrix{Float64} # reference mass matrix
     SS::Vector{Matrix{Float64}} # skew symmetric operator
@@ -152,12 +151,12 @@ struct RefElemSBP <: AbstractRefElem
         for idim in 1:dim
             SSi = zeros((Nqnodes + Nfnodes * Nfaces, Nqnodes + Nfnodes * Nfaces))
 
-            Q = Ph' * chiq' * diag(wq) * dchi[idim] * Ph
+            Q = Ph' * chiq' * Diagonal(wq) * dchi[idim] * Ph
             EB = (chif * Ph)' * Diagonal(bh[idim])
 
             SSi[1:Nqnodes, 1:Nqnodes] = Q - Q'
-            SSi[1:Nqnodes, Nqnodes+1:end] = -EB'
-            SSi[Nqnodes+1:end, 1:Nqnodes] = EB
+            SSi[1:Nqnodes, Nqnodes+1:end] = EB
+            SSi[Nqnodes+1:end, 1:Nqnodes] = -EB'
 
             SS[idim] = SSi
         end
