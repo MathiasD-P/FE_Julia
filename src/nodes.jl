@@ -50,6 +50,8 @@ function evaluate(nodes::Tensorprod_nodes)
         xi, _ = FastGaussQuadrature.gausslobatto(nodes.K)
     elseif nodes.name == "GL"
         xi, _ = FastGaussQuadrature.gaussjacobi(nodes.K,0.0,0.0)
+    elseif nodes.name == "linear"
+        xi = collect(range(0, 1, K))
     end
     xi = 0.5 * (reshape(xi, length(xi), 1) .+ 1)
 

@@ -2,7 +2,7 @@
 
 julia_version = "1.12.4"
 manifest_format = "2.0"
-project_hash = "c090dd4a5dd0584b8aeee45bd43fc423e3bd7507"
+project_hash = "71291e5f90c66194d0e174d81dbbba7a4215efc7"
 
 [[deps.AliasTables]]
 deps = ["PtrArrays", "Random"]
@@ -169,6 +169,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "27af30de8b5445644e8ffe3bcb0d72049c089cf1"
 uuid = "2e619515-83b5-522b-bb60-26c02a35a201"
 version = "2.7.3+0"
+
+[[deps.FE_Julia]]
+deps = ["CSV", "FastGaussQuadrature", "LinearAlgebra", "Plots"]
+path = "."
+uuid = "33777599-7456-4e34-b76a-766ca612bcbb"
+version = "0.1.0"
 
 [[deps.FFMPEG]]
 deps = ["FFMPEG_jll"]

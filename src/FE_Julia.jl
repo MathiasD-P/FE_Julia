@@ -1,15 +1,17 @@
-module FE
-    export make_rectangle_quad, make_interval
-    export RefElemStd
-    #export empty_param
-    export DGStd
+module FE_Julia
+    export parameters
+    export set_up_and_solve
 
     include("mesh.jl")
-    include("FE_basis.jl")
+    include("basis.jl")
     include("nodes.jl")
     include("refelem.jl")
     include("parameters.jl")
     include("DG_init.jl")
     include("physics.jl")
     include("BCsandICs.jl")
+    include("build_residual.jl")
+    include("ODE_solver.jl")
+    include("postprocessing.jl")
+    include("main.jl")
 end

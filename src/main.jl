@@ -76,10 +76,10 @@ function set_up_and_solve(param::parameters)
 
     # if we want the error, we compute it
     if param.OOAtest
-        error = [dg.DOF, compute_L2error(sol[1], sol[2], enodes, dg, param)] 
-        return sol, error
+        error = [dg.DOF, compute_L2error(sol[1], sol[2], enodes, dg, param)]
+        return sol, dg.bpts, error
     else
-        return sol
+        return sol, dg.bpts
     end
 end
 
