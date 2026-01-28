@@ -55,6 +55,7 @@ function build_residual(u, t, BChandler::Dict, dg::DGFluxDiff, param::parameters
             Npts = dg.refelem.Nfnodes*dg.refelem.Nfaces + dg.refelem.Nqnodes
             indexv = 1+dg.refelem.Nqnodes*(ielem-1):dg.refelem.Nqnodes*ielem
             indexf = 1+dg.refelem.Nfnodes*dg.refelem.Nfaces*(ielem-1):dg.refelem.Nfnodes*dg.refelem.Nfaces*ielem
+            indexb = 1+dg.refelem.Nbnodes*(ielem-1):dg.refelem.Nbnodes*ielem
             
             uv = @view uq[indexv,:]
             uf = @view un[indexf,:]
@@ -63,7 +64,7 @@ function build_residual(u, t, BChandler::Dict, dg::DGFluxDiff, param::parameters
             two_pt_flux_to_ref!(F, ielem, dg)
 
             for dir in 1:dg.dim
-                @views residual[indexv,:] .= residual[indexv,:] .- dg.refelem.MVF * reshape(sum(dg.refelem.SS[dir] .* F[dir], dims=2), (Npts, dg.Nstates))
+                @views residual[indexb,:] .= residual[indexb,:] .- dg.refelem.MVF * reshape(sum(dg.refelem.SS[dir] .* F[dir], dims=2), (Npts, dg.Nstates))
             end
         end
 
