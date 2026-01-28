@@ -4,6 +4,10 @@
 
 function ODE_solver(u0, BChandler::Dict, dg::DG, param::parameters)
 
+    if param.calc_entropy
+        S = zeros((param.Nsteps,)) # pre-allocate memory for entropy calculation if required.
+    end
+
     if param.ODE_solver == "LSERK45"
         RKa = [ 0.0,
                 -567301805773.0/1357537059087.0,
@@ -26,7 +30,7 @@ function ODE_solver(u0, BChandler::Dict, dg::DG, param::parameters)
         current_time = 0
         residual = zeros(size(u))
 
-        for _ in 1:param.Nsteps
+        for istep in 1:param.Nsteps
             for stage in 1:RKstages
 
                 rktime = current_time + RKc[stage] * param.dt
@@ -37,15 +41,25 @@ function ODE_solver(u0, BChandler::Dict, dg::DG, param::parameters)
                 u .= u .+ RKb[stage] .* residual
             end
             current_time += param.dt
+
+            if param.calc_entropy
+                S[istep] = compute_total_entropy(u, dg, param)
+            end
         end
-        return (u, current_time)
+
+        if param.calc_entropy
+            return (u, current_time, S)
+        else
+            return (u, current_time)
+        end
+
     end
 end
 
 function compute_total_entropy(u, dg::DG, param::parameters)
     if dg.mesh isa LMesh
-        s = compute_local_entropy(u, param)
-        s = block_matmul(dg.M, s, dg.Nel)
+        s = compute_local_entropy(block_matmul(dg.refelem.chiq, u, dg.mesh.Nel), param)
+        s = block_matmul(Diagonal(dg.refelem.wq), s, dg.mesh.Nel)
 
         for ielem = 1:dg.mesh.Nel
             index = 1+dg.refelem.Nbnodes*(ielem-1):dg.refelem.Nbnodes*ielem

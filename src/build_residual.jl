@@ -16,16 +16,17 @@ function build_residual(u, t, BChandler::Dict, dg::DGStd, param::parameters)
 
         # Finally, we evaluate numflux
         un = block_matmul(dg.refelem.chif, u, dg.mesh.Nel)
-        up = dg.FtoF * un .+ evaluate_BC(BChandler, dg, t)
+        up = dg.FtoF * un + evaluate_BC(BChandler, dg, t)
         numflux = compute_numflux(un, up, dg.nphys, param)
         flux_to_ref!(numflux, dg)
 
-        # Assemble complete residual
+        # Assemble complete residual (volume and face)
         residual = zeros(size(u))
         for dir in 1:dg.dim
-            residual .= residual .- block_matmul(dg.refelem.Dh[dir], flux[dir], dg.mesh.Nel) .- block_matmul((dg.refelem.LIFT[dir]), numflux[dir] .- fluxface[dir], dg.mesh.Nel)
+            @views residual .= residual .- block_matmul(dg.refelem.Dh[dir], flux[dir], dg.mesh.Nel) .- block_matmul((dg.refelem.LIFT[dir]), numflux[dir] .- fluxface[dir], dg.mesh.Nel)
         end
 
+        # Scale by Jacobian
         for ielem = 1:dg.mesh.Nel
             index = 1+dg.refelem.Nbnodes*(ielem-1):dg.refelem.Nbnodes*ielem
             @views residual[index,:] .= residual[index,:] ./ dg.mesh.J[ielem]
@@ -36,6 +37,51 @@ function build_residual(u, t, BChandler::Dict, dg::DGStd, param::parameters)
 end
 
 function build_residual(u, t, BChandler::Dict, dg::DGFluxDiff, param::parameters)
+    if dg.mesh isa LMesh
+        # We start by computing the entropy-projected solution (volume and face)
+        v = eval_evar(block_matmul(dg.refelem.chiq, u, dg.mesh.Nel), param) # Compute entropy variables at vol quadrature points
+        v = block_matmul(dg.refelem.Ph, v, dg.mesh.Nel) # Project entropy variables
+        vq = block_matmul(dg.refelem.chiq, v, dg.mesh.Nel) # evaluate at vol quadrature
+        vf = block_matmul(dg.refelem.chif, v, dg.mesh.Nel)
+
+        uq = eval_cvar(vq, param)
+        un = eval_cvar(vf, param)
+        up = dg.FtoF * un + evaluate_BC(BChandler, dg, t)
+
+        residual = zeros(size(u))
+
+        # Volume terms
+        for ielem = 1:dg.mesh.Nel
+            Npts = dg.refelem.Nfnodes*dg.refelem.Nfaces + dg.refelem.Nqnodes
+            indexv = 1+dg.refelem.Nqnodes*(ielem-1):dg.refelem.Nqnodes*ielem
+            indexf = 1+dg.refelem.Nfnodes*dg.refelem.Nfaces*(ielem-1):dg.refelem.Nfnodes*dg.refelem.Nfaces*ielem
+            
+            uv = @view uq[indexv,:]
+            uf = @view un[indexf,:]
+
+            F = two_pt_flux(uv, uf, param)
+            two_pt_flux_to_ref!(F, ielem, dg)
+
+            for dir in 1:dg.dim
+                @views residual[indexv,:] .= residual[indexv,:] .- dg.refelem.MVF * reshape(sum(dg.refelem.SS[dir] .* F[dir], dims=2), (Npts, dg.Nstates))
+            end
+        end
+
+        # Surface term
+        numflux = compute_numflux(un, up, dg.nphys, param)
+        flux_to_ref!(numflux, dg)
+        for dir in 1:dg.dim
+            @views residual .= residual .- block_matmul((dg.refelem.LIFT[dir]), numflux[dir], dg.mesh.Nel)
+        end
+
+        # Scale by Jacobian
+        for ielem = 1:dg.mesh.Nel
+            index = 1+dg.refelem.Nbnodes*(ielem-1):dg.refelem.Nbnodes*ielem
+            @views residual[index,:] .= residual[index,:] ./ dg.mesh.J[ielem]
+        end
+
+        return residual
+    end
 end
 
 function build_residual(u, t, BChandler::Dict, dg::DGArtVisc, param::parameters)
@@ -61,17 +107,34 @@ function block_matmul!(block, myvec, out, N::Integer)
     return nothing
 end
 
-function flux_to_ref!(f, dg::DGStd)
+# OPTIMIZE THIS FUNCTION LATER. MAYBE IN-PLACE REPLACEMENT IS NOT THE BEST OPTION (I was only thinking about)...
+function flux_to_ref!(f, dg::DG) # this is a global operation
     if dg.dim == 1
         return nothing
     elseif dg.dim == 2
         if dg.mesh isa LMesh
-            for i in 1:dg.dim
-                for ielem in 1:dg.mesh.Nel
-                    index = 1+dg.refelem.Nbnodes*(ielem-1):dg.refelem.Nbnodes*ielem
-                    @views f[i][index,:] .= dg.mesh.CT[ielem][i,1] .* f[1][index,:] .+ dg.mesh.CT[ielem][i,2] .* f[2][index,:]
-                end
+            ftemp = zeros((dg.refelem.Nbnodes, dg.Nstates))
+            for ielem in 1:dg.mesh.Nel
+                index = 1+dg.refelem.Nbnodes*(ielem-1):dg.refelem.Nbnodes*ielem
+                @views ftemp .= dg.mesh.CT[ielem][1,1] .* f[1][index,:] .+ dg.mesh.CT[ielem][1,2] .* f[2][index,:]
+                @views f[2][index,:] .= dg.mesh.CT[ielem][2,1] .* f[1][index,:] .+ dg.mesh.CT[ielem][2,2] .* f[2][index,:]
+                @views f[1][index,:] .= ftemp
             end
+            return nothing
+        end
+    end
+end
+
+# OPTIMIZE THIS FUNCTION LATER. MAYBE IN-PLACE REPLACEMENT IS NOT THE BEST OPTION...
+function two_pt_flux_to_ref!(F, ielem, dg::DG) # this is a local operation
+    if dg.dim == 1
+        return nothing
+    elseif dg.dim == 2
+        if dg.mesh isa LMesh
+            Ftemp = zeros(size(F))
+            @views Ftemp .= dg.mesh.CT[ielem][1,1] .* F[1] .+ dg.mesh.CT[ielem][1,2] .* F[2]
+            @views F[2] .= dg.mesh.CT[ielem][2,1] .* F[1] .+ dg.mesh.CT[ielem][2,2] .* F[2]
+            @views F[1] .= Ftemp
             return nothing
         end
     end

@@ -67,31 +67,51 @@ end
 # Two-point Fluxes
 #####################################################################
 
-function two_pt_flux(up, un, param::parameters)
-    M,N = size(up)
+function two_pt_flux(u, uf, param::parameters)
+    M, N = size(u)
+    Npts = M + size(uf, 1)
+    nphys = nothing # We don't need the physical normal here, but this is a required argument for compute_numflux
 
     if param.dim == 1
-        F1 = zeros((N,N,M))
-        for j in axes(up, 1)
+        F1 = zeros((Npts,Npts,N))
+        for j in 1:Npts
             for i in 1:j
-                upv = @view up[i,:]
-                unv = @view un[j,:]
-                f = numflux(upv,unv,param)
+                if j > M
+                    up = @view uf[j - M,:]
+                else
+                    up = @view u[j,:]
+                end
+                if i > M
+                    un = @view uf[i - M,:]
+                else
+                    un = @view u[i,:]
+                end
+
+                f = compute_numflux(up,un, nphys, param)
                 F1[i,j,:] .= f[1]
-                F1[i,j,:] .= f[1]
+                F1[j,i,:] .= f[1]
             end
         end
 
         return [F1]
 
     elseif param.dim == 2
-        F1 = zeros((N,N,M))
-        F2 = zeros((N,N,M))
-        for j in axes(up, 1)
+        F1 = zeros((Npts,Npts,N))
+        F2 = zeros((Npts,Npts,N))
+        for j in 1:Npts
             for i in 1:j
-                upv = @view up[i,:]
-                unv = @view un[j,:]
-                f = numflux(upv,unv,param)
+                if j > M
+                    up = @view uf[j - M,:]
+                else
+                    up = @view u[j,:]
+                end
+                if i > M
+                    un = @view uf[i - M,:]
+                else
+                    un = @view u[i,:]
+                end
+
+                f = compute_numflux(up,un, nphys, param)
                 F1[i,j,:] .= f[1]
                 F1[j,i,:] .= f[1]
                 F2[i,j,:] .= f[2]
@@ -115,9 +135,9 @@ function eval_evar(u, param::parameters)
         s = cvar_entropy(u, param)
 
         v = zeros(size(u))
-        v[1,:] .= (-s .+ param.gamma .+ 1) .- u[end,:] ./ rhoe
-        v[2:1+param.dim,:] .= u[2:1+param.dim,:] ./ rhoe
-        v[end,:] .= -u[1,:] ./ rhoe
+        @views v[1,:] .= (-s .+ param.gamma .+ 1) .- u[end,:] ./ rhoe
+        @views v[2:1+param.dim,:] .= u[2:1+param.dim,:] ./ rhoe
+        @views v[end,:] .= -u[1,:] ./ rhoe
 
         return v
     end
@@ -130,9 +150,9 @@ function eval_cvar(v, param::parameters)
         rhoe = evar_intenergy(v, param)
 
         u = zeros(size(u))
-        u[:,1] .= -rhoe .* v[:,end]
-        u[:,2:1+param.dim] .= v[:,2:1+param.dim] .* rhoe
-        u[:,end] .= -v[:,1] .+ param.gamma .+ 0.5 .* sum(v[:,2:1+param.dim].^2, dims=2)' ./  v[:,end]
+        @views u[:,1] .= -rhoe .* v[:,end]
+        @views u[:,2:1+param.dim] .= v[:,2:1+param.dim] .* rhoe
+        @views u[:,end] .= -v[:,1] .+ param.gamma .+ 0.5 .* sum(v[:,2:1+param.dim].^2, dims=2)' ./  v[:,end]
 
         return u
     end
@@ -206,19 +226,19 @@ function Euler_physflux(u, param::parameters)
     p = pressure(u, param)
 
     f1 = zeros(size(u))
-    f1[:,1] .= u[:,2]
-    f1[:2:param.dim+1] .=  u[:,2:param.dim+1] .* u[:,2]' ./  u[:,1]
-    f1[:,2] .= f[:,2] .+ p
-    f1[:,end] .= (p .+  u[:,end]) .* (u[:,2]./ u[:,1])
+    @views f1[:,1] .= u[:,2]
+    @views f1[:2:param.dim+1] .=  u[:,2:param.dim+1] .* u[:,2]' ./  u[:,1]
+    @views f1[:,2] .= f[:,2] .+ p
+    @views f1[:,end] .= (p .+  u[:,end]) .* (u[:,2]./ u[:,1])
 
     if param.dim == 1
         return [f1]
     elseif param.dim == 2
         f2 = zeros(size(u))
-        f2[:,1] .= u[3,:]
-        f2[:,2] .= f1[:,3]
-        f2[:,3] .= u[:,3].^2 ./  u[:,1] .+ p
-        f2[:,end] .= (p .+  u[:,end]) .* (u[:,3]./ u[:,1])
+        @views f2[:,1] .= u[3,:]
+        @views f2[:,2] .= f1[:,3]
+        @views f2[:,3] .= u[:,3].^2 ./  u[:,1] .+ p
+        @views f2[:,end] .= (p .+  u[:,end]) .* (u[:,3]./ u[:,1])
 
         return [f1, f2]
     end
@@ -226,28 +246,28 @@ function Euler_physflux(u, param::parameters)
 end
 
 function Euler_numflux_Chandrashekar(up, un, param::parameters)
-    uavg2 = 0.5 .* (sum((up[:,2:param.dim+1] .+ un[:,2:param.dim+1]).^2, dims=2) .- sum(up[:,2:param.dim+1].^2 .+ un[:,2:param.dim+1].^2, dims=2))
-    uavg = 0.5 .* (up[:,2:param.dim+1] ./ up[:,1] .+ un[:,2:param.dim+1] ./ un[:,1])
+    @views uavg2 = 0.5 .* (sum((up[:,2:param.dim+1] .+ un[:,2:param.dim+1]).^2, dims=2) .- sum(up[:,2:param.dim+1].^2 .+ un[:,2:param.dim+1].^2, dims=2))
+    @views uavg = 0.5 .* (up[:,2:param.dim+1] ./ up[:,1] .+ un[:,2:param.dim+1] ./ un[:,1])
     pl = pressure(up, param)
     pr = pressure(un, param)
-    rholog = logmean.(up[1,:], un[1,:])
-    pavg = (up[:,1].+un[:,1]) ./ (up[:,1] ./ pl .+ un[:,1] ./ pr)
-    plog = 0.5 .* rholog ./ logmean.(0.5 .* up[:,1] ./ pl, 0.5 .* un[:,1] ./ pr)
+    @views rholog = logmean.(up[1,:], un[1,:])
+    @views pavg = (up[:,1].+un[:,1]) ./ (up[:,1] ./ pl .+ un[:,1] ./ pr)
+    @views plog = 0.5 .* rholog ./ logmean.(0.5 .* up[:,1] ./ pl, 0.5 .* un[:,1] ./ pr)
 
     f1 = zeros(size(up))
-    f1[:,1] .= rholog .* uavg[:,1]
-    f1[:,2:param.dim+1] .= uavg .* f1[:,1]
-    f1[:,2] .= f1[:,2] .+ pavg
-    f1[:,end] .= (plog ./ (param.gamma-1) .+ pavg .+ 0.5 .* uavg2) .* uavg[:,1]
+    @views f1[:,1] .= rholog .* uavg[:,1]
+    @views f1[:,2:param.dim+1] .= uavg .* f1[:,1]
+    @views f1[:,2] .= f1[:,2] .+ pavg
+    @views f1[:,end] .= (plog ./ (param.gamma-1) .+ pavg .+ 0.5 .* uavg2) .* uavg[:,1]
 
     if param.dim == 1
         return [f1]
     elseif param.dim == 2
         f2 = zeros(size(up))
-        f2[:,1] .= rholog .* uavg[:,2]
-        f2[:,2] .= f1[:,3]
-        f2[:,3] .= f2[:,1] .* uavg[:,2] .+ pavg
-        f1[:,end] .= (plog ./ (param.gamma-1) .+ pavg .+ 0.5 .* uavg2) .* uavg[:,2]
+        @views f2[:,1] .= rholog .* uavg[:,2]
+        @views f2[:,2] .= f1[:,3]
+        @views f2[:,3] .= f2[:,1] .* uavg[:,2] .+ pavg
+        @views f1[:,end] .= (plog ./ (param.gamma-1) .+ pavg .+ 0.5 .* uavg2) .* uavg[:,2]
 
         return [f1, f2]
     end
