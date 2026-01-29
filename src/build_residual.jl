@@ -92,15 +92,19 @@ function build_residual(u, t, BChandler::Dict, dg::DGEntFilt, param::parameters)
 end
 
 function block_matmul(block, myvec, N::Integer) # Block * v
-    Nrowv, Ncolv = size(myvec)
-    Nrowb, Ncolb = size(block)
+    Nrowv = size(myvec,1)
+    Ncolv = size(myvec,2)
+    Nrowb = size(block,1)
+    Ncolb = size(block,2)
 
     return (reshape(block * reshape(myvec, (Ncolb,div(Nrowv * Ncolv,Ncolb))), (N*Nrowb, Ncolv)))
 end
 
 function block_matmul!(block, myvec, out, N::Integer)
-    Nrowv, Ncolv = size(myvec)
-    Nrowb, Ncolb = size(block)
+    Nrowv = size(myvec,1)
+    Ncolv = size(myvec,2)
+    Nrowb = size(block,1)
+    Ncolb = size(block,2)
 
     mul!(out, block, reshape(myvec, (Ncolb,div(Nrowv * Ncolv,Ncolb))))
     out = reshape(out, (N*Nrowb, Ncolv))

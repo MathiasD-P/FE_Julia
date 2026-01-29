@@ -77,19 +77,19 @@ function two_pt_flux(u, uf, param::parameters)
         for j in 1:Npts
             for i in 1:j
                 if j > M
-                    up = @view uf[j - M,:]
+                    up = (@view uf[j - M,:])'
                 else
-                    up = @view u[j,:]
+                    up = (@view u[j,:])'
                 end
                 if i > M
-                    un = @view uf[i - M,:]
+                    un = (@view uf[i - M,:])'
                 else
-                    un = @view u[i,:]
+                    un = (@view u[i,:])'
                 end
 
                 f = compute_numflux(up,un, nphys, param)
-                F1[i,j,:] .= f[1]
-                F1[j,i,:] .= f[1]
+                F1[i,j,:] .= f[1][:]
+                F1[j,i,:] .= f[1][:]
             end
         end
 
@@ -112,10 +112,10 @@ function two_pt_flux(u, uf, param::parameters)
                 end
 
                 f = compute_numflux(up,un, nphys, param)
-                F1[i,j,:] .= f[1]
-                F1[j,i,:] .= f[1]
-                F2[i,j,:] .= f[2]
-                F2[j,i,:] .= f[2]
+                F1[i,j,:] .= f[1][:]
+                F1[j,i,:] .= f[1][:]
+                F2[i,j,:] .= f[2][:]
+                F2[j,i,:] .= f[2][:]
             end
         end
 
@@ -135,9 +135,9 @@ function eval_evar(u, param::parameters)
         s = cvar_entropy(u, param)
 
         v = zeros(size(u))
-        @views v[1,:] .= (-s .+ param.gamma .+ 1) .- u[end,:] ./ rhoe
-        @views v[2:1+param.dim,:] .= u[2:1+param.dim,:] ./ rhoe
-        @views v[end,:] .= -u[1,:] ./ rhoe
+        @views v[:,1] .= (-s .+ param.gamma .+ 1) .- u[:,end] ./ rhoe
+        @views v[:,2:1+param.dim] .= u[:,2:1+param.dim] ./ rhoe
+        @views v[:,end] .= -u[:,1] ./ rhoe
 
         return v
     end
@@ -149,10 +149,10 @@ function eval_cvar(v, param::parameters)
     elseif param.pdetype == "EulerPerfGas"
         rhoe = evar_intenergy(v, param)
 
-        u = zeros(size(u))
+        u = zeros(size(v))
         @views u[:,1] .= -rhoe .* v[:,end]
         @views u[:,2:1+param.dim] .= v[:,2:1+param.dim] .* rhoe
-        @views u[:,end] .= -v[:,1] .+ param.gamma .+ 0.5 .* sum(v[:,2:1+param.dim].^2, dims=2)' ./  v[:,end]
+        @views u[:,end] .= rhoe .* (1 .- 0.5 .* sum(v[:,2:1+param.dim].^2, dims=2) ./  v[:,end])
 
         return u
     end
@@ -167,8 +167,8 @@ function compute_local_entropy(u, param::parameters)
         return 0.5 .* u.^2
     elseif param.pdetype == "Burgers"
         return 0.5 .* u.^2
-    elseif param.pde.type == "EulerPerfGas"
-        return cvar_entropy(u, param)
+    elseif param.pdetype == "EulerPerfGas"
+        return -u[:,1] .* cvar_entropy(u, param)
     end
 end
 
@@ -211,11 +211,12 @@ end
 
 # logmean
 function logmean(up, un)
-    epsilon = 1e-2
+    epsilon = 1e-2 # tolerance for logmean computation
 
     if abs(up - un) < epsilon # Roe simplification for up -> un
-        a = ((up/un - 1) / (up/un + 1))^2
-        return 0.5 * (up + un) / (1 + a/3 + a^2/5 + u^3/7)
+        r = up/un
+        a = ((r - 1) / (r + 1))^2
+        return 0.5 * (up + un) / (1 + a/3 + a^2/5 + a^3/7)
     else
         return (up - un) / (log(up) - log(un))
     end
@@ -227,8 +228,8 @@ function Euler_physflux(u, param::parameters)
 
     f1 = zeros(size(u))
     @views f1[:,1] .= u[:,2]
-    @views f1[:2:param.dim+1] .=  u[:,2:param.dim+1] .* u[:,2]' ./  u[:,1]
-    @views f1[:,2] .= f[:,2] .+ p
+    @views f1[:,2:param.dim+1] .=  u[:,2:param.dim+1] .* u[:,2] ./  u[:,1]
+    @views f1[:,2] .= f1[:,2] .+ p
     @views f1[:,end] .= (p .+  u[:,end]) .* (u[:,2]./ u[:,1])
 
     if param.dim == 1
@@ -245,30 +246,24 @@ function Euler_physflux(u, param::parameters)
 
 end
 
-function Euler_numflux_Chandrashekar(up, un, param::parameters)
-    @views uavg2 = 0.5 .* (sum((up[:,2:param.dim+1] .+ un[:,2:param.dim+1]).^2, dims=2) .- sum(up[:,2:param.dim+1].^2 .+ un[:,2:param.dim+1].^2, dims=2))
-    @views uavg = 0.5 .* (up[:,2:param.dim+1] ./ up[:,1] .+ un[:,2:param.dim+1] ./ un[:,1])
-    pl = pressure(up, param)
-    pr = pressure(un, param)
-    @views rholog = logmean.(up[1,:], un[1,:])
-    @views pavg = (up[:,1].+un[:,1]) ./ (up[:,1] ./ pl .+ un[:,1] ./ pr)
-    @views plog = 0.5 .* rholog ./ logmean.(0.5 .* up[:,1] ./ pl, 0.5 .* un[:,1] ./ pr)
-
-    f1 = zeros(size(up))
-    @views f1[:,1] .= rholog .* uavg[:,1]
-    @views f1[:,2:param.dim+1] .= uavg .* f1[:,1]
-    @views f1[:,2] .= f1[:,2] .+ pavg
-    @views f1[:,end] .= (plog ./ (param.gamma-1) .+ pavg .+ 0.5 .* uavg2) .* uavg[:,1]
-
+# ONLY FOR 1D RIGHT NOW
+function Euler_numflux_Chandrashekar(up, un, param::parameters) # copied from (Chan 2018)
     if param.dim == 1
-        return [f1]
-    elseif param.dim == 2
-        f2 = zeros(size(up))
-        @views f2[:,1] .= rholog .* uavg[:,2]
-        @views f2[:,2] .= f1[:,3]
-        @views f2[:,3] .= f2[:,1] .* uavg[:,2] .+ pavg
-        @views f1[:,end] .= (plog ./ (param.gamma-1) .+ pavg .+ 0.5 .* uavg2) .* uavg[:,2]
+        f1 = zeros(size(up))
 
-        return [f1, f2]
+        @views velp = up[:,2:param.dim+1] ./ up[:,1]
+        @views veln = un[:,2:param.dim+1] ./ un[:,1]
+        velavg = 0.5 .* (velp .+ veln)
+
+        @views betap = 0.5 .* up[:,1] ./ pressure(up, param)
+        @views betan = 0.5 .* un[:,1] ./ pressure(un, param)
+
+        @views f1[:,1] .= logmean.(up[:,1], un[:,1]) .* velavg[:,1]
+        @views f1[:,2] .= 0.5 .* (up[:,1] .+ un[:,1]) ./ (betap .+ betan) .+ velavg .* f1[:,1]
+        @views f1[:,3] .= f1[:,1] .* (0.5 / (param.gamma-1) ./ logmean.(betan,betap) .- 0.25 .* (velp.^2 .+ veln.^2)) .+ velavg .* f1[:,2]
+
+        return [f1]
+    else
+        error("Invalid number of dimensions.")
     end
 end

@@ -62,7 +62,7 @@ function compute_total_entropy(u, dg::DG, param::parameters)
         s = block_matmul(Diagonal(dg.refelem.wq), s, dg.mesh.Nel)
 
         for ielem = 1:dg.mesh.Nel
-            index = 1+dg.refelem.Nbnodes*(ielem-1):dg.refelem.Nbnodes*ielem
+            index = 1+dg.refelem.Nqnodes*(ielem-1):dg.refelem.Nqnodes*ielem
             @views s[index,:] .= s[index,:] .* dg.mesh.J[ielem]
         end
 

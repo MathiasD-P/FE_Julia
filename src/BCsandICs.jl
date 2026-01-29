@@ -14,6 +14,21 @@ function initialize_states(dg::DG, param::parameters, pts = nothing)
         u .= exp.(-80 .* pts.^2)
 
         return u
+    
+    elseif param.ICname == "IsentropicDensityWave" # Classical test case used by (Chan 2025)
+        A = 0.5 # tunable wave amplitude
+        u[:,1] .= 1 .+ A .* sin.(2*pi.*sum(pts, dims=2))
+        @views u[:,2] .= 0.1 .* u[:,1]
+
+        if param.dim == 1
+            @views u[:,end] = 10 / (param.gamma - 1) .+ (0.5 * 0.1^2) ./ u[:,1]
+        elseif param.dim == 2
+            @views u[:,] .= 0.2 .* u[:,1]
+            @views u[:,end] = 10 / (param.gamma - 1) .+ (0.5 * (0.1^2 +0.2^2)) ./ u[:,1]
+        end
+
+        return u
+
 
     elseif param.ICname == "SodShockTube"
         u[pts .< 0,1] .= 1
