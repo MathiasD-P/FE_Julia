@@ -21,10 +21,10 @@ function initialize_states(dg::DG, param::parameters, pts = nothing)
         @views u[:,2] .= 0.1 .* u[:,1]
 
         if param.dim == 1
-            @views u[:,end] = 10 / (param.gamma - 1) .+ (0.5 * 0.1^2) ./ u[:,1]
+            @views u[:,end] = 10 / (param.gamma - 1) .+ (0.5 * 0.1^2) .* u[:,1]
         elseif param.dim == 2
             @views u[:,] .= 0.2 .* u[:,1]
-            @views u[:,end] = 10 / (param.gamma - 1) .+ (0.5 * (0.1^2 +0.2^2)) ./ u[:,1]
+            @views u[:,end] = 10 / (param.gamma - 1) .+ (0.5 * (0.1^2 +0.2^2)) .* u[:,1]
         end
 
         return u

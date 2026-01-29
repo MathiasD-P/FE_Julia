@@ -54,7 +54,7 @@ function set_up_and_solve(param::parameters)
         Nstates = 1
     elseif param.pdetype == "Burgers"
         Nstates = 1
-    elseif para.pdetype == "EulerPerfGas"
+    elseif param.pdetype == "EulerPerfGas"
         Nstates = 2 + param.dim
     end
 

@@ -19,6 +19,13 @@ function compute_L2error(u, t, enodes::AbstractNodes, dg::DG, param::parameters)
                     error2 = (block_matmul(chie, u, dg.mesh.Nel) .- initialize_states(dg, param, mod.((epts .- param.a .* t .+ 0.5),1.0) .- 0.5)).^2
                 end
             end
+        
+        elseif param.pdetype == "EulerPerfGas"
+            if param.BCname == "periodic"
+                if param.ICname == "IsentropicDensityWave"
+                    error2 = (block_matmul(chie, u, dg.mesh.Nel) .- initialize_states(dg, param, epts .- 0.1 * t)).^2
+                end
+            end
         end
 
         for ielem = 1:dg.mesh.Nel
@@ -26,6 +33,6 @@ function compute_L2error(u, t, enodes::AbstractNodes, dg::DG, param::parameters)
             @views error2[index,:] .= error2[index,:] .* dg.mesh.J[ielem]
         end
 
-        return sqrt.(sum(block_matmul(Diagonal(we), error2, dg.mesh.Nel)))
+        return sum(sqrt.(sum(block_matmul(Diagonal(we), error2, dg.mesh.Nel), dims=1)))
     end
 end
