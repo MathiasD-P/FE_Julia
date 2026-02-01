@@ -1,29 +1,34 @@
-function build_residual(u, t, BChandler::Dict, dg::DGStd, param::parameters)
+function build_residual(u, t, BChandler::Dict, solver::SolverStd, dg::DGStd, param::parameters)
     # For a linear mesh, we can simplify the computation
     if dg.mesh isa LMesh
         # We compute the projected reference flux
-        flux = compute_physflux(block_matmul(dg.refelem.chiq, u, dg.mesh.Nel), param)
-        flux_to_ref!(flux, dg)
+        uq = block_matmul!(solver.uq, dg.refelem.chiq, u, dg.mesh.Nel)
+        fluxq = compute_physflux!(solver.fluxq, uq, param)
+        flux_to_ref!(fluxq, dg)
+
         for dir in 1:dg.dim
-            @views flux[dir] = block_matmul(dg.refelem.Ph, flux[dir], dg.mesh.Nel)
+            @views flux = block_matmul!(solver.flux[dir], dg.refelem.Ph, solver.fluxq[dir], dg.mesh.Nel)
         end
 
         # Now, we interpolate the projected flux to the faces
-        fluxface = Vector{Matrix{Float64}}(undef, dg.dim)
         for dir in 1:dg.dim
-            @views fluxface[dir] = block_matmul(dg.refelem.chif, flux[dir], dg.mesh.Nel)
+            @views fluxface = block_matmul!(solver.fluxface[dir], dg.refelem.chif, solver.flux[dir], dg.mesh.Nel)
         end
 
         # Finally, we evaluate numflux
-        un = block_matmul(dg.refelem.chif, u, dg.mesh.Nel)
-        up = dg.FtoF * un + evaluate_BC(BChandler, dg, t)
-        numflux = compute_numflux(un, up, dg.nphys, param)
+        un = block_matmul!(solver.un, dg.refelem.chif, u, dg.mesh.Nel)
+        up = block_matmul!(solver.up, dg.FtoF, un, dg.mesh.Nel)
+        up .= up .+ evaluate_BC(BChandler, dg, t)
+
+        
+        numflux = compute_numflux(solver.numflux, un, up, dg.nphys, param)
         flux_to_ref!(numflux, dg)
 
         # Assemble complete residual (volume and face)
-        residual = zeros(size(u))
+        solver.residual .= 0.0
+        residual = solver.residual
         for dir in 1:dg.dim
-            @views residual .= residual .- block_matmul(dg.refelem.Dh[dir], flux[dir], dg.mesh.Nel) .- block_matmul((dg.refelem.LIFT[dir]), numflux[dir] .- fluxface[dir], dg.mesh.Nel)
+            @views residual .= residual .- block_matmul!(solver.resbuffer1, dg.refelem.Dh[dir], solver.flux[dir], dg.mesh.Nel) .- block_matmul!(solver.resbuffer2,dg.refelem.LIFT[dir], numflux[dir] .- solver.fluxface[dir], dg.mesh.Nel)
         end
 
         # Scale by Jacobian
@@ -36,7 +41,7 @@ function build_residual(u, t, BChandler::Dict, dg::DGStd, param::parameters)
     end
 end
 
-function build_residual(u, t, BChandler::Dict, dg::DGFluxDiff, param::parameters)
+function build_residual(u, t, BChandler::Dict, solver, dg::DGFluxDiff, param::parameters)
     if dg.mesh isa LMesh
         # We start by computing the entropy-projected solution (volume and face)
         v = eval_evar(block_matmul(dg.refelem.chiq, u, dg.mesh.Nel), param) # Compute entropy variables at vol quadrature points
@@ -100,16 +105,17 @@ function block_matmul(block, myvec, N::Integer) # Block * v
     return (reshape(block * reshape(myvec, (Ncolb,div(Nrowv * Ncolv,Ncolb))), (N*Nrowb, Ncolv)))
 end
 
-function block_matmul!(block, myvec, out, N::Integer)
+function block_matmul!(out, block, myvec, N::Integer)
     Nrowv = size(myvec,1)
     Ncolv = size(myvec,2)
     Nrowb = size(block,1)
     Ncolb = size(block,2)
+    Ntemp = div(Nrowv * Ncolv,Ncolb)
 
-    mul!(out, block, reshape(myvec, (Ncolb,div(Nrowv * Ncolv,Ncolb))))
-    out = reshape(out, (N*Nrowb, Ncolv))
+    reshapedview = reshape(out, (Nrowb,Ntemp))
+    mul!(reshapedview, block, reshape(myvec, (Ncolb,Ntemp)))
 
-    return nothing
+    return out
 end
 
 # OPTIMIZE THIS FUNCTION LATER. MAYBE IN-PLACE REPLACEMENT IS NOT THE BEST OPTION (I was only thinking about)...

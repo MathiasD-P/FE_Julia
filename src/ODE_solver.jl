@@ -26,6 +26,8 @@ function ODE_solver(u0, BChandler::Dict, dg::DG, param::parameters)
                 2802321613138.0/2924317926251.0];
         RKstages = 5
 
+        solver = initialize_solver(dg)
+
         u = u0
         current_time = 0
         residual = zeros(size(u))
@@ -35,7 +37,7 @@ function ODE_solver(u0, BChandler::Dict, dg::DG, param::parameters)
 
                 rktime = current_time + RKc[stage] * param.dt
 
-                rhs = build_residual(u, rktime, BChandler, dg, param)
+                rhs = build_residual(u, rktime, BChandler, solver, dg, param)
 
                 residual .= RKa[stage] .* residual .+ param.dt .* rhs
                 u .= u .+ RKb[stage] .* residual
@@ -67,5 +69,60 @@ function compute_total_entropy(u, dg::DG, param::parameters)
         end
 
         return sum(s)
+    end
+end
+
+#####################################################################
+# Solver mutable structures
+#####################################################################
+
+abstract type AbstractSolver end
+
+mutable struct SolverStd <: AbstractSolver
+    uq::Matrix{Float64}
+    fluxq::Vector{Matrix{Float64}}
+    flux::Vector{Matrix{Float64}}
+    fluxface::Vector{Matrix{Float64}}
+    numflux::Vector{Matrix{Float64}}
+    up::Matrix{Float64}
+    un::Matrix{Float64}
+    resbuffer1::Matrix{Float64}
+    resbuffer2::Matrix{Float64}
+    residual::Matrix{Float64}
+
+    function SolverStd(dg::DGStd)
+        Nqpts = dg.refelem.Nqnodes * dg.mesh.Nel
+        uq = zeros((Nqpts, dg.Nstates))
+        fluxq = [zeros((Nqpts, dg.Nstates)) for dir in 1:dg.mesh.dim]
+
+        flux = [zeros((dg.DOF, dg.Nstates)) for dir in 1:dg.mesh.dim]
+
+        fluxface = [zeros((dg.NFval, dg.Nstates)) for dir in 1:dg.mesh.dim]
+        numflux = [zeros((dg.NFval, dg.Nstates)) for dir in 1:dg.mesh.dim]
+        up = zeros((dg.NFval, dg.Nstates))
+        un = zeros((dg.NFval, dg.Nstates))
+
+        resbuffer1 = zeros((dg.DOF, dg.Nstates))
+        resbuffer2 = zeros((dg.DOF, dg.Nstates))
+        residual = zeros((dg.DOF, dg.Nstates))
+
+        new(
+            uq,
+            fluxq,
+            flux,
+            fluxface,
+            numflux,
+            up,
+            un,
+            resbuffer1,
+            resbuffer2,
+            residual
+        )
+    end
+end
+
+function initialize_solver(dg::DG)
+    if dg isa DGStd
+        return SolverStd(dg)
     end
 end
