@@ -3,7 +3,7 @@ using Plots
 
 function test_DGStd_Chand_Euler_1D()
 
-    N = 5
+    N = 6
 
     param = parameters(
                         pdetype="EulerPerfGas",

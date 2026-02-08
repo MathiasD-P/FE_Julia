@@ -19,6 +19,7 @@ mutable struct parameters
     Neldim::Union{Integer,Nothing}
 
     numfluxtype::Union{String,Nothing}
+    twoptfluxtype::Union{String,Nothing}
 
     ICname::Union{String,Nothing}
     BCname::Union{String,Nothing}
@@ -48,6 +49,7 @@ mutable struct parameters
                      domain=nothing,
                      Neldim=nothing,
                      numfluxtype=nothing,
+                     twoptfluxtype=nothing,
                      ICname=nothing,
                      BCname=nothing,
                      ODE_solver=nothing,
@@ -60,7 +62,7 @@ mutable struct parameters
                      gamma=nothing,
                      a=nothing)
 
-                     new(pdetype, dim, dgtype, bnodes, qnodes, fnodes, enodes, refelem, domain, Neldim, numfluxtype, ICname, BCname, ODE_solver, Nsteps, dt, save, calc_entropy, OOAtest, Nrefinements, gamma,a)
+                     new(pdetype, dim, dgtype, bnodes, qnodes, fnodes, enodes, refelem, domain, Neldim, numfluxtype, twoptfluxtype, ICname, BCname, ODE_solver, Nsteps, dt, save, calc_entropy, OOAtest, Nrefinements, gamma,a)
     end
 end
 

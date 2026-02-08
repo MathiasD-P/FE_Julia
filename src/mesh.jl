@@ -11,8 +11,6 @@ abstract type AbstractMesh end
                 to the reference element. Vertices must be numbered counter-clockwise.
     - connectivity: (Nel, Nfaces) Matrix storing the "connectivity graph" of the mesh. Entries are integer vectors of
                     the form [ielem, reffaceindex].
-                    [0, 0] : homogeneous Dirichlet BCs
-                    [0, -1] : homogeneous Neumann BCs
 """
 mutable struct LMesh <: AbstractMesh
     dim::Integer # dimension of the space discretized

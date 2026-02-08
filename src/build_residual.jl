@@ -1,4 +1,4 @@
-function build_residual(u, t, BChandler::Dict, dg::DGStd, param::parameters)
+function build_residual(u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGStd, param::parameters)
     # For a linear mesh, we can simplify the computation
     if dg.mesh isa LMesh
         # We compute the projected reference flux
@@ -36,17 +36,20 @@ function build_residual(u, t, BChandler::Dict, dg::DGStd, param::parameters)
     end
 end
 
-function build_residual(u, t, BChandler::Dict, dg::DGFluxDiff, param::parameters)
+function build_residual(u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGFluxDiff, param::parameters)
     if dg.mesh isa LMesh
         # We start by computing the entropy-projected solution (volume and face)
-        v = eval_evar(block_matmul(dg.refelem.chiq, u, dg.mesh.Nel), param) # Compute entropy variables at vol quadrature points
+        v = compute_evar(block_matmul(dg.refelem.chiq, u, dg.mesh.Nel), param) # Compute entropy variables at vol quadrature points
         v = block_matmul(dg.refelem.Ph, v, dg.mesh.Nel) # Project entropy variables
         vq = block_matmul(dg.refelem.chiq, v, dg.mesh.Nel) # evaluate at vol quadrature
         vf = block_matmul(dg.refelem.chif, v, dg.mesh.Nel)
 
-        uq = eval_cvar(vq, param)
-        un = eval_cvar(vf, param)
+        uq = compute_cvar(vq, param)
+        un = compute_cvar(vf, param)
         up = dg.FtoF * un + evaluate_BC(BChandler, dg, t)
+
+        # We rebind variables for "efficiency" (dirty memory management...)
+        v = vq = vf = nothing
 
         residual = zeros(size(u))
 
@@ -68,6 +71,9 @@ function build_residual(u, t, BChandler::Dict, dg::DGFluxDiff, param::parameters
             end
         end
 
+        # We rebind variables for "efficiency" (dirty memory management...)
+        F = uq = nothing
+
         # Surface term
         numflux = compute_numflux(un, up, dg.nphys, param)
         flux_to_ref!(numflux, dg)
@@ -85,13 +91,13 @@ function build_residual(u, t, BChandler::Dict, dg::DGFluxDiff, param::parameters
     end
 end
 
-function build_residual(u, t, BChandler::Dict, dg::DGArtVisc, param::parameters)
+function build_residual(u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGArtVisc, param::parameters)
 end
 
-function build_residual(u, t, BChandler::Dict, dg::DGEntFilt, param::parameters)
+function build_residual(u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGEntFilt, param::parameters)
 end
 
-function block_matmul(block, myvec, N::Integer) # Block * v
+function block_matmul(block::AbstractArray, myvec::AbstractArray, N::Integer) # Block * v
     Nrowv = size(myvec,1)
     Ncolv = size(myvec,2)
     Nrowb = size(block,1)
@@ -100,7 +106,7 @@ function block_matmul(block, myvec, N::Integer) # Block * v
     return (reshape(block * reshape(myvec, (Ncolb,div(Nrowv * Ncolv,Ncolb))), (N*Nrowb, Ncolv)))
 end
 
-function block_matmul!(block, myvec, out, N::Integer)
+function block_matmul!(out::AbstractArray, block::AbstractArray, myvec::AbstractArray, N::Integer)
     Nrowv = size(myvec,1)
     Ncolv = size(myvec,2)
     Nrowb = size(block,1)
@@ -113,7 +119,7 @@ function block_matmul!(block, myvec, out, N::Integer)
 end
 
 # OPTIMIZE THIS FUNCTION LATER. MAYBE IN-PLACE REPLACEMENT IS NOT THE BEST OPTION (I was only thinking about)...
-function flux_to_ref!(f, dg::DG) # this is a global operation
+function flux_to_ref!(f::AbstractArray, dg::DG) # this is a global operation
     if dg.dim == 1
         return nothing
     elseif dg.dim == 2
@@ -131,7 +137,7 @@ function flux_to_ref!(f, dg::DG) # this is a global operation
 end
 
 # OPTIMIZE THIS FUNCTION LATER. MAYBE IN-PLACE REPLACEMENT IS NOT THE BEST OPTION...
-function two_pt_flux_to_ref!(F, ielem, dg::DG) # this is a local operation
+function two_pt_flux_to_ref!(F::AbstractArray, iele::Integer, dg::DG) # this is a local operation
     if dg.dim == 1
         return nothing
     elseif dg.dim == 2
