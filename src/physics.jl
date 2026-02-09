@@ -96,13 +96,13 @@ function two_pt_flux(u::AbstractArray, uf::AbstractArray, param::parameters)
                     if param.twoptfluxtype == "EC_split"
                         f = [(1/6) .* (un.^2 .+ up .* un .+ up.^2)]
                     else
-                        error("Undefined numerical flux!")
+                        error("Undefined two-point flux!")
                     end
                 elseif param.pdetype == "EulerPerfGas"
                     if param.twoptfluxtype == "EC_Chandrashekar"
                         f = Euler_numflux_Chandrashekar(up, un, param)
                     else
-                        error("Undefined numerical flux!")
+                        error("Undefined two-point flux!")
                     end
                 else
                     error("Unknown PDE type!")

@@ -47,7 +47,10 @@ function set_up_and_solve(param::parameters)
     bnodes = make_nodes(param.bnodes)
     qnodes = make_nodes(param.qnodes)
     fnodes = make_nodes(param.refelem, param.fnodes)
-    enodes = make_nodes(param.enodes)
+
+    if isnothing(param.enodes) == false
+        enodes = make_nodes(param.enodes)
+    end
 
     # initialize ref element and DG object
     if param.pdetype == "LinAdv"
@@ -61,6 +64,9 @@ function set_up_and_solve(param::parameters)
     if param.dgtype =="DGStd"
         refelem = RefElemStd(bnodes, qnodes, fnodes)
         dg = DGStd(Nstates, refelem, mesh)
+    elseif param.dgtype == "DGFluxDiff"
+        refelem = RefElemSBP(bnodes, qnodes, fnodes)
+        dg = DGFluxDiff(Nstates, refelem, mesh)
     else
         error("Unknown DG type!")
     end
