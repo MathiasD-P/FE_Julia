@@ -69,59 +69,53 @@ end
 # Two-point Fluxes
 #####################################################################
 
-function two_pt_flux(u::AbstractArray, uf::AbstractArray, param::parameters)
+function compute_two_pt_flux(u::AbstractArray, uf::AbstractArray, param::parameters)
     M, Nstates = size(u)
     Npts = M + size(uf, 1)
-
-    F = [Array{Float64}(undef, Npts,Npts,Nstates)]
-    if param.dim == 2
+    
+    if param.dim == 1
+        F = [Array{Float64}(undef, Npts,Npts,Nstates)]
+    elseif param.dim == 2
         F = [Array{Float64}(undef, Npts,Npts,Nstates), Array{Float64}(undef, Npts,Npts,Nstates)]
     end
 
-    if param.dim == 1
-        @inbounds for j in 1:Npts
-            @inbounds for i in 1:j
-                if j > M
-                    up = (@view uf[j - M,:])'
-                else
-                    up = (@view u[j,:])'
-                end
-                if i > M
-                    un = (@view uf[i - M,:])'
-                else
-                    un = (@view u[i,:])'
-                end
+    @inbounds for j in 1:Npts
+        @inbounds for i in 1:j
+            if j > M
+                up = (@view uf[j - M,:])'
+            else
+                up = (@view u[j,:])'
+            end
+            if i > M
+                un = (@view uf[i - M,:])'
+            else
+                un = (@view u[i,:])'
+            end
 
-                if param.pdetype == "Burgers"
-                    if param.twoptfluxtype == "EC_split"
-                        f = [(1/6) .* (un.^2 .+ up .* un .+ up.^2)]
-                    else
-                        error("Undefined two-point flux!")
-                    end
-                elseif param.pdetype == "EulerPerfGas"
-                    if param.twoptfluxtype == "EC_Chandrashekar"
-                        f = Euler_numflux_Chandrashekar(up, un, param)
-                    else
-                        error("Undefined two-point flux!")
-                    end
+            if param.pdetype == "Burgers"
+                if param.twoptfluxtype == "EC_split"
+                    f = [(1/6) .* (un.^2 .+ up .* un .+ up.^2)]
                 else
-                    error("Unknown PDE type!")
+                    error("Undefined two-point flux!")
                 end
+            elseif param.pdetype == "EulerPerfGas"
+                if param.twoptfluxtype == "EC_Chandrashekar"
+                    f = Euler_numflux_Chandrashekar(up, un, param)
+                else
+                    error("Undefined two-point flux!")
+                end
+            else
+                error("Unknown PDE type!")
+            end
 
-                if param.dim == 1
-                    F[1][i,j,:] .= f[1][:]
-                    F[1][j,i,:] .= f[1][:]
-                elseif param.dim == 2
-                    F[1][i,j,:] .= f[1][:]
-                    F[1][j,i,:] .= f[1][:]
-                    F[2][i,j,:] .= f[2][:]
-                    F[2][j,i,:] .= f[2][:]
-                end
+            @inbounds for dir in 1:param.dim
+                @views F[dir][i,j,:] = f[dir][:]
+                @views F[dir][j,i,:] = f[dir][:]
             end
         end
-        
-        return F
     end
+        
+    return F
 end
 
 #####################################################################
@@ -135,7 +129,7 @@ function compute_evar(u::AbstractArray, param::parameters)
         rhoe = Euler_cvar_intenergy(u,param)
         s = Euler_cvar_entropy(u, param)
 
-        v = zeros(size(u))
+        v = Array{Float64}(undef, size(u)...)
         @views v[:,1] .= (-s .+ param.gamma .+ 1) .- u[:,end] ./ rhoe
         @views v[:,2:1+param.dim] .= u[:,2:1+param.dim] ./ rhoe
         @views v[:,end] .= -u[:,1] ./ rhoe
@@ -150,7 +144,7 @@ function compute_cvar(v::AbstractArray, param::parameters)
     elseif param.pdetype == "EulerPerfGas"
         rhoe = Euler_evar_intenergy(v, param)
 
-        u = zeros(size(v))
+        u = Array{Float64}(undef, size(v)...)
         @views u[:,1] .= -rhoe .* v[:,end]
         @views u[:,2:1+param.dim] .= v[:,2:1+param.dim] .* rhoe
         @views u[:,end] .= rhoe .* (1 .- 0.5 .* sum(v[:,2:1+param.dim].^2, dims=2) ./  v[:,end])
@@ -227,7 +221,7 @@ end
 function Euler_physflux(u::AbstractArray, param::parameters)
     p = Euler_pressure(u, param)
 
-    f1 = zeros(size(u))
+    f1 = Array{Float64}(undef, size(u)...)
     @views f1[:,1] .= u[:,2]
     @views f1[:,2:param.dim+1] .=  u[:,2:param.dim+1] .* u[:,2] ./  u[:,1]
     @views f1[:,2] .= f1[:,2] .+ p
@@ -236,7 +230,7 @@ function Euler_physflux(u::AbstractArray, param::parameters)
     if param.dim == 1
         return [f1]
     elseif param.dim == 2
-        f2 = zeros(size(u))
+        f2 = Array{Float64}(undef, size(u)...)
         @views f2[:,1] .= u[3,:]
         @views f2[:,2] .= f1[:,3]
         @views f2[:,3] .= u[:,3].^2 ./  u[:,1] .+ p
@@ -250,7 +244,7 @@ end
 # ONLY FOR 1D RIGHT NOW
 function Euler_numflux_Chandrashekar(up::AbstractArray, un::AbstractArray, param::parameters) # copied from (Chan 2018)
     if param.dim == 1
-        f1 = zeros(size(up))
+        f1 = Array{Float64}(undef, size(up)...)
 
         @views velp = up[:,2:param.dim+1] ./ up[:,1]
         @views veln = un[:,2:param.dim+1] ./ un[:,1]
@@ -259,9 +253,9 @@ function Euler_numflux_Chandrashekar(up::AbstractArray, un::AbstractArray, param
         @views betap = 0.5 .* up[:,1] ./ Euler_pressure(up, param)
         @views betan = 0.5 .* un[:,1] ./ Euler_pressure(un, param)
 
-        @views f1[:,1] .= logmean.(up[:,1], un[:,1]) .* velavg[:,1]
-        @views f1[:,2] .= 0.5 .* (up[:,1] .+ un[:,1]) ./ (betap .+ betan) .+ velavg .* f1[:,1]
-        @views f1[:,3] .= f1[:,1] .* (0.5 / (param.gamma-1) ./ logmean.(betan,betap) .- 0.25 .* (velp.^2 .+ veln.^2)) .+ velavg .* f1[:,2]
+        @views @. f1[:,1] = logmean(up[:,1], un[:,1]) * velavg[:,1]
+        @views @. f1[:,2] = 0.5 * (up[:,1] + un[:,1]) / (betap + betan) + velavg * f1[:,1]
+        @views @. f1[:,3] = f1[:,1] * (0.5 / (param.gamma-1) / logmean(betan,betap) - 0.25 * (velp^2 + veln^2)) + velavg * f1[:,2]
 
         return [f1]
     else

@@ -1,4 +1,4 @@
-function build_residual(u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGStd, param::parameters)
+function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGStd, param::parameters)
     # For a linear mesh, we can simplify the computation
     if dg.mesh isa LMesh
         # We compute the projected reference flux
@@ -21,7 +21,7 @@ function build_residual(u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGS
         flux_to_ref!(numflux, dg)
 
         # Assemble complete residual (volume and face)
-        residual = zeros(size(u))
+        residual .= 0.0
         for dir in 1:dg.dim
             @views residual .= residual .- block_matmul(dg.refelem.Dh[dir], flux[dir], dg.mesh.Nel) .- block_matmul((dg.refelem.LIFT[dir]), numflux[dir] .- fluxface[dir], dg.mesh.Nel)
         end
@@ -29,14 +29,14 @@ function build_residual(u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGS
         # Scale by Jacobian
         for ielem = 1:dg.mesh.Nel
             index = 1+dg.refelem.Nbnodes*(ielem-1):dg.refelem.Nbnodes*ielem
-            @views residual[index,:] .= residual[index,:] ./ dg.mesh.J[ielem]
+            @views residual[index,:] .= residual[index,:] ./ dg.mesh.detJ[ielem]
         end
 
         return residual
     end
 end
 
-function build_residual(u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGFluxDiff, param::parameters)
+function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGFluxDiff, param::parameters)
     if dg.mesh isa LMesh
         # We start by computing the entropy-projected solution (volume and face)
         v = compute_evar(block_matmul(dg.refelem.chiq, u, dg.mesh.Nel), param) # Compute entropy variables at vol quadrature points
@@ -46,12 +46,13 @@ function build_residual(u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGF
 
         uq = compute_cvar(vq, param)
         un = compute_cvar(vf, param)
-        up = dg.FtoF * un + evaluate_BC(BChandler, dg, t)
 
         # We rebind variables for "efficiency" (dirty memory management...)
         v = vq = vf = nothing
 
-        residual = zeros(size(u))
+        up = dg.FtoF * un + evaluate_BC(BChandler, dg, t)
+
+        residual .= 0.0
 
         # Volume terms
         for ielem = 1:dg.mesh.Nel
@@ -63,7 +64,7 @@ function build_residual(u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGF
             uv = @view uq[indexv,:]
             uf = @view un[indexf,:]
 
-            F = two_pt_flux(uv, uf, param)
+            F = compute_two_pt_flux(uv, uf, param)
             two_pt_flux_to_ref!(F, ielem, dg)
 
             for dir in 1:dg.dim
@@ -81,20 +82,22 @@ function build_residual(u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGF
             @views residual .= residual .- block_matmul((dg.refelem.LIFT[dir]), numflux[dir], dg.mesh.Nel)
         end
 
+        numflux = un = up = nothing
+
         # Scale by Jacobian
         for ielem = 1:dg.mesh.Nel
             index = 1+dg.refelem.Nbnodes*(ielem-1):dg.refelem.Nbnodes*ielem
-            @views residual[index,:] .= residual[index,:] ./ dg.mesh.J[ielem]
+            @views residual[index,:] .= residual[index,:] ./ dg.mesh.detJ[ielem]
         end
 
         return residual
     end
 end
 
-function build_residual(u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGArtVisc, param::parameters)
+function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGArtVisc, param::parameters)
 end
 
-function build_residual(u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGEntFilt, param::parameters)
+function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGEntFilt, param::parameters)
 end
 
 function block_matmul(block::AbstractArray, myvec::AbstractArray, N::Integer) # Block * v

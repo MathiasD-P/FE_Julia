@@ -29,13 +29,14 @@ function ODE_solver(u0::Matrix{Float64}, BChandler::Dict, dg::DG, param::paramet
         u = u0
         current_time = 0
         residual = zeros(size(u))
+        rhs = zeros(size(u))
 
         for istep in 1:param.Nsteps
             for stage in 1:RKstages
 
                 rktime = current_time + RKc[stage] * param.dt
 
-                rhs = build_residual(u, rktime, BChandler, dg, param)
+                rhs = build_residual!(rhs, u, rktime, BChandler, dg, param)
 
                 residual .= RKa[stage] .* residual .+ param.dt .* rhs
                 u .= u .+ RKb[stage] .* residual
