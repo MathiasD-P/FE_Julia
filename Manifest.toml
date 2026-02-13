@@ -1,6 +1,6 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.12.5"
+julia_version = "1.12.4"
 manifest_format = "2.0"
 project_hash = "d4fc40f7fed8dd1ff01618a4f7e6316842e3ef8b"
 
@@ -171,7 +171,7 @@ uuid = "2e619515-83b5-522b-bb60-26c02a35a201"
 version = "2.7.3+0"
 
 [[deps.FE_Julia]]
-deps = ["CSV", "FastGaussQuadrature", "LinearAlgebra", "SparseArrays"]
+deps = ["CSV", "FastGaussQuadrature", "LinearAlgebra", "Plots", "SparseArrays"]
 path = "."
 uuid = "33777599-7456-4e34-b76a-766ca612bcbb"
 version = "0.1.0"
