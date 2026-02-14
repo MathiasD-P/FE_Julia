@@ -80,7 +80,7 @@ function compute_two_pt_flux(u::AbstractArray, uf::AbstractArray, param::paramet
     end
 
     @inbounds for j in 1:Npts
-        @inbounds for i in 1:j
+        @inbounds for i in 1:(j-1) # Note that we "skip" the diagonal!
             if j > M
                 up = (@view uf[j - M,:])'
             else
@@ -112,6 +112,12 @@ function compute_two_pt_flux(u::AbstractArray, uf::AbstractArray, param::paramet
                 @views F[dir][i,j,:] = f[dir][:]
                 @views F[dir][j,i,:] = f[dir][:]
             end
+        end
+    end
+
+    @inbounds for dir in 1:param.dim # Allocate diagonals with zeros (don't need them since Hadamard prod with Skew-symmetric)
+        for j in 1:Npts
+            @views F[dir][j,j,:] .= 0.0
         end
     end
         
