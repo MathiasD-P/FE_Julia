@@ -1,45 +1,45 @@
-function run(param_file)
-    param = parse_parameters(param_file)
+# function run(param_file)
+#     param = parse_parameters(param_file)
 
-    if param.OOAtest
-        Nrefinements = param.Nrefinements
-        L2error = zeros((Nrefinements,)) # store DOFS and Nrefinements
-    else
-        Nrefinements = 1
-    end
+#     if param.OOAtest
+#         Nrefinements = param.Nrefinements
+#         L2error = zeros((Nrefinements,)) # store DOFS and Nrefinements
+#     else
+#         Nrefinements = 1
+#     end
 
-    for isolve = 1:Nrefinements
-        if param.OOAtest
-            sol, L2error[isolve,:] = set_up_and_solve(param)
-            refinemesh!(param)
-        else
-            sol = set_up_and_solve(param)
-        end
+#     for isolve = 1:Nrefinements
+#         if param.OOAtest
+#             sol, L2error[isolve,:] = set_up_and_solve(param)
+#             refinemesh!(param)
+#         else
+#             sol = set_up_and_solve(param)
+#         end
 
-        N = length(sol)
+#         N = length(sol)
 
-        if N == 2
-            outputnames = ("solution", "time")
-        elseif N == 3
-            outputnames = ("solution", "time", "entropy")
-        end
+#         if N == 2
+#             outputnames = ("solution", "time")
+#         elseif N == 3
+#             outputnames = ("solution", "time", "entropy")
+#         end
 
-        for iname in 1:N
-            if param.save
-            else
-                println(name[i] * " :")
-                println(sol[i])
-            end
-        end
-    end
+#         for iname in 1:N
+#             if param.save
+#             else
+#                 println(name[i] * " :")
+#                 println(sol[])
+#             end
+#         end
+#     end
 
-    if param.save
-    else
-        println("L2Error: ")
-        println(L2error)
-    end
+#     if param.save
+#     else
+#         println("L2Error: ")
+#         println(L2error)
+#     end
 
-end
+# end
 
 function set_up_and_solve(param::parameters)
     # initialize mesh and nodes
@@ -76,14 +76,15 @@ function set_up_and_solve(param::parameters)
     BChandler = initialize_BCHandler(dg, param)
 
     # Now, we solve
-    sol = ODE_solver(u0, BChandler, dg, param) # tuple containing solution, final time and the time-history of all requested scalar observables
+    output = ODE_solver(u0, BChandler, dg, param) # dictionary containing solution, final time and the time-history of all requested scalar observables
+    output["dg"] = dg # we add dg object to solution dict
 
     # if we want the error, we compute it
     if param.OOAtest
-        error = [dg.DOF, compute_L2error(sol[1], sol[2], enodes, dg, param)]
-        return sol, dg.bpts, error
+        output["L2error"] = compute_L2error(output["solution"], output["time"], enodes, dg, param)
+        return output
     else
-        return sol, dg.bpts
+        return output
     end
 end
 

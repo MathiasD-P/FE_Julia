@@ -49,9 +49,9 @@ function ODE_solver(u0::Matrix{Float64}, BChandler::Dict, dg::DG, param::paramet
         end
 
         if param.calc_entropy
-            return (u, current_time, S)
+            return Dict("solution" => u, "time" => current_time, "entropy" => S)
         else
-            return (u, current_time)
+            return Dict("solution" => u, "time" => current_time)
         end
 
     end

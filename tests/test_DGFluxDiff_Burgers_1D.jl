@@ -23,15 +23,15 @@ function test_DGFluxDiff_Burgers_1D()
                         calc_entropy=true)
 
 
-    sol, pts = set_up_and_solve(param)
+    output = set_up_and_solve(param)
 
-    p = plot(pts, sol[1], xlabel="x", ylabel="u", legend=false)
+    p = plot(output["dg"].bpts, output["solution"], xlabel="x", ylabel="u", legend=false)
     display(p)
 
-    p = plot(collect(0.00002:0.00002:0.2), sol[3],xlabel="t", ylabel="S", legend=false)
+    p = plot(collect(0.00002:0.00002:0.2), output["entropy"], xlabel="t", ylabel="S", legend=false)
     display(p)
 
-    entropy_error = maximum(abs.(sol[3] .- sol[3][1]))
+    entropy_error = maximum(abs.(output["entropy"] .- output["entropy"][1]))
 
     println("Entropy Error is:")
     println(entropy_error)

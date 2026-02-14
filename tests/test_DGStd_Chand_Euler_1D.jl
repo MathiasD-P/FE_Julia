@@ -10,9 +10,9 @@ function test_DGStd_Chand_Euler_1D()
                         dim=1,
                         dgtype="DGStd",
                         bnodes="(5)-GL",
-                        qnodes="(5)-GLL",
-                        enodes="(10)-GLL",
-                        fnodes="(1)-GLL",
+                        qnodes="(6)-GL",
+                        enodes="(10)-GL",
+                        fnodes="(1)-GL",
                         refelem="interval",
                         domain="unit_interval_linear",
                         Neldim=2,
@@ -27,11 +27,12 @@ function test_DGStd_Chand_Euler_1D()
 
     error = zeros((N,2))
     for i in 1:N
-        sol, pts, error[i,:] = set_up_and_solve(param)
+        output = set_up_and_solve(param)
+        error[i,:] = [output["dg"].DOF, output["L2error"]]
         param.Neldim = param.Neldim * 2
 
         if i == N
-            p2 = plot(pts, sol[1], xlabel="x", ylabel="u")
+            p2 = plot(output["dg"].bpts, output["solution"], xlabel="x", ylabel="u")
             display(p2)
         end
     end
