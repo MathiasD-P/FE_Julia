@@ -4,15 +4,10 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
         # We compute the projected reference flux
         flux = compute_physflux(block_matmul(dg.refelem.chiq, u, dg.mesh.Nel), param)
         flux_to_ref!(flux, dg)
-        for dir in 1:dg.dim
-            @views flux[dir] = block_matmul(dg.refelem.Ph, flux[dir], dg.mesh.Nel)
-        end
+        flux = Tuple(block_matmul(dg.refelem.Ph, flux[dir], dg.mesh.Nel) for dir in 1:dg.dim)
 
         # Now, we interpolate the projected flux to the faces
-        fluxface = Vector{Matrix{Float64}}(undef, dg.dim)
-        for dir in 1:dg.dim
-            @views fluxface[dir] = block_matmul(dg.refelem.chif, flux[dir], dg.mesh.Nel)
-        end
+        fluxface = Tuple(block_matmul(dg.refelem.chif, flux[dir], dg.mesh.Nel) for dir in 1:dg.dim)
 
         # Finally, we evaluate numflux
         un = block_matmul(dg.refelem.chif, u, dg.mesh.Nel)
@@ -47,9 +42,6 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
         uq = compute_cvar(vq, param)
         un = compute_cvar(vf, param)
 
-        # We rebind variables for "efficiency" (dirty memory management...)
-        v = vq = vf = nothing
-
         up = dg.FtoF * un + evaluate_BC(BChandler, dg, t)
 
         residual .= 0.0
@@ -72,17 +64,12 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
             end
         end
 
-        # We rebind variables for "efficiency" (dirty memory management...)
-        F = uq = nothing
-
         # Surface term
         numflux = compute_numflux(un, up, dg.nphys, param)
         flux_to_ref!(numflux, dg)
         for dir in 1:dg.dim
             @views residual .= residual .- block_matmul((dg.refelem.LIFT[dir]), numflux[dir], dg.mesh.Nel)
         end
-
-        numflux = un = up = nothing
 
         # Scale by Jacobian
         for ielem = 1:dg.mesh.Nel
@@ -122,7 +109,7 @@ function block_matmul!(out::AbstractArray, block::AbstractArray, myvec::Abstract
 end
 
 # OPTIMIZE THIS FUNCTION LATER. MAYBE IN-PLACE REPLACEMENT IS NOT THE BEST OPTION (I was only thinking about)...
-function flux_to_ref!(f::AbstractArray, dg::DG) # this is a global operation
+function flux_to_ref!(f::Tuple, dg::DG) # this is a global operation
     if dg.dim == 1
         return nothing
     elseif dg.dim == 2
@@ -140,7 +127,7 @@ function flux_to_ref!(f::AbstractArray, dg::DG) # this is a global operation
 end
 
 # OPTIMIZE THIS FUNCTION LATER. MAYBE IN-PLACE REPLACEMENT IS NOT THE BEST OPTION...
-function two_pt_flux_to_ref!(F::AbstractArray, iele::Integer, dg::DG) # this is a local operation
+function two_pt_flux_to_ref!(F::Tuple, iele::Integer, dg::DG) # this is a local operation
     if dg.dim == 1
         return nothing
     elseif dg.dim == 2

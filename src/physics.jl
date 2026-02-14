@@ -10,10 +10,10 @@
 
 function compute_physflux(u::AbstractArray, param::parameters)
     if param.pdetype == "LinAdv"
-        return [param.a .* u]
+        return (param.a .* u,)
 
     elseif param.pdetype == "Burgers"
-        return [0.5 .* u.^2]
+        return (0.5 .* u.^2,)
 
     elseif param.pdetype == "EulerPerfGas"
         return Euler_physflux(u, param)
@@ -29,7 +29,7 @@ end
 function compute_numflux(un::AbstractArray, up::AbstractArray, nphys::Union{AbstractArray,Nothing}, param::parameters)
     if param.pdetype == "LinAdv"
         if param.numfluxtype == "central"
-            return [0.5 .* param.a .* (up .+ un)]
+            return (0.5 .* param.a .* (up .+ un),)
         elseif param.numfluxtype == "upwind"
             f = copy(up)
             if param.a * nphys[1] >= 0
@@ -38,18 +38,18 @@ function compute_numflux(un::AbstractArray, up::AbstractArray, nphys::Union{Abst
                 index = nphys .!= nphys[1]
             end
             f[index] = un[index]  
-            return [param.a .* f]
+            return (param.a .* f,)
         else
             error("Undefined numerical flux!")
         end
 
     elseif param.pdetype == "Burgers"
         if param.numfluxtype == "central"
-            return [0.25 .* (up.^2 .+ un.^2)]
+            return (0.25 .* (up.^2 .+ un.^2),)
         elseif param.numfluxtype == "LF"
-            return [0.25 .* ((un.^2 .+ up.^2) .- max.(abs.(up), abs.(un)) .* (up .- un) .* dg.nphys)]
+            return (0.25 .* ((un.^2 .+ up.^2) .- max.(abs.(up), abs.(un)) .* (up .- un) .* dg.nphys),)
         elseif param.numfluxtype == "EC_split"
-            return [(1/6) .* (un.^2 .+ up .* un .+ up.^2)]
+            return ((1/6) .* (un.^2 .+ up .* un .+ up.^2),)
         else
             error("Undefined numerical flux!")
         end
@@ -74,9 +74,9 @@ function compute_two_pt_flux(u::AbstractArray, uf::AbstractArray, param::paramet
     Npts = M + size(uf, 1)
     
     if param.dim == 1
-        F = [Array{Float64}(undef, Npts,Npts,Nstates)]
+        F = (Array{Float64}(undef, Npts,Npts,Nstates),)
     elseif param.dim == 2
-        F = [Array{Float64}(undef, Npts,Npts,Nstates), Array{Float64}(undef, Npts,Npts,Nstates)]
+        F = (Array{Float64}(undef, Npts,Npts,Nstates), Array{Float64}(undef, Npts,Npts,Nstates))
     end
 
     @inbounds for j in 1:Npts
@@ -228,7 +228,7 @@ function Euler_physflux(u::AbstractArray, param::parameters)
     @views f1[:,end] .= (p .+  u[:,end]) .* (u[:,2]./ u[:,1])
 
     if param.dim == 1
-        return [f1]
+        return (f1,)
     elseif param.dim == 2
         f2 = Array{Float64}(undef, size(u)...)
         @views f2[:,1] .= u[3,:]
@@ -236,7 +236,7 @@ function Euler_physflux(u::AbstractArray, param::parameters)
         @views f2[:,3] .= u[:,3].^2 ./  u[:,1] .+ p
         @views f2[:,end] .= (p .+  u[:,end]) .* (u[:,3]./ u[:,1])
 
-        return [f1, f2]
+        return (f1, f2)
     end
 
 end
@@ -257,7 +257,7 @@ function Euler_numflux_Chandrashekar(up::AbstractArray, un::AbstractArray, param
         @views @. f1[:,2] = 0.5 * (up[:,1] + un[:,1]) / (betap + betan) + velavg * f1[:,1]
         @views @. f1[:,3] = f1[:,1] * (0.5 / (param.gamma-1) / logmean(betan,betap) - 0.25 * (velp^2 + veln^2)) + velavg * f1[:,2]
 
-        return [f1]
+        return (f1,)
     else
         error("Invalid number of dimensions.")
     end
