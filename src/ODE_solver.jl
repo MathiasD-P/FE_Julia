@@ -27,7 +27,7 @@ function ODE_solver(u0::Matrix{Float64}, BChandler::Dict, dg::DG, param::paramet
         RKstages = 5
 
         u = u0
-        current_time = 0
+        current_time = 0.0
         residual = zeros(size(u))
         rhs = zeros(size(u))
 

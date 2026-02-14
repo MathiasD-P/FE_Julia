@@ -69,23 +69,18 @@ end
 # Two-point Fluxes
 #####################################################################
 
-function compute_two_pt_flux(u::AbstractArray, uf::AbstractArray, param::parameters)
-    M, Nstates = size(u)
-    Npts = M + size(uf, 1)
-    
-    if param.dim == 1
-        F = (Array{Float64}(undef, Npts,Npts,Nstates),)
-    elseif param.dim == 2
-        F = (Array{Float64}(undef, Npts,Npts,Nstates), Array{Float64}(undef, Npts,Npts,Nstates))
-    end
+function compute_two_pt_flux!(F::Union{Tuple{Array{Float64}}, Tuple{Array{Float64}, Array{Float64}}}, u::AbstractArray, uf::AbstractArray, param::parameters)
+    M, = size(u,1)
+    Npts = size(F[1], 1)
 
     @inbounds for j in 1:Npts
+        if j > M
+            up = (@view uf[j - M,:])'
+        else
+            up = (@view u[j,:])'
+        end
+        
         @inbounds for i in 1:(j-1) # Note that we "skip" the diagonal!
-            if j > M
-                up = (@view uf[j - M,:])'
-            else
-                up = (@view u[j,:])'
-            end
             if i > M
                 un = (@view uf[i - M,:])'
             else
@@ -94,7 +89,7 @@ function compute_two_pt_flux(u::AbstractArray, uf::AbstractArray, param::paramet
 
             if param.pdetype == "Burgers"
                 if param.twoptfluxtype == "EC_split"
-                    f = [(1/6) .* (un.^2 .+ up .* un .+ up.^2)]
+                    f = ((1/6) .* (un.^2 .+ up .* un .+ up.^2),)
                 else
                     error("Undefined two-point flux!")
                 end
@@ -112,12 +107,6 @@ function compute_two_pt_flux(u::AbstractArray, uf::AbstractArray, param::paramet
                 @views F[dir][i,j,:] = f[dir][:]
                 @views F[dir][j,i,:] = f[dir][:]
             end
-        end
-    end
-
-    @inbounds for dir in 1:param.dim # Allocate diagonals with zeros (don't need them since Hadamard prod with Skew-symmetric)
-        for j in 1:Npts
-            @views F[dir][j,j,:] .= 0.0
         end
     end
         

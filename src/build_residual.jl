@@ -47,8 +47,16 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
         residual .= 0.0
 
         # Volume terms
+        Npts = dg.refelem.Nfnodes*dg.refelem.Nfaces + dg.refelem.Nqnodes # number of 2-pt flux pts
+        F = Tuple(Array{Float64}(undef, Npts, Npts, dg.Nstates) for dir in 1:dg.dim)
+
+        @inbounds for dir in 1:param.dim # Allocate diagonals with zeros (don't need them since Hadamard prod with Skew-symmetric)
+            for j in 1:Npts
+                F[dir][j,j,:] .= 0.0
+            end
+        end
+
         for ielem = 1:dg.mesh.Nel
-            Npts = dg.refelem.Nfnodes*dg.refelem.Nfaces + dg.refelem.Nqnodes
             indexv = 1+dg.refelem.Nqnodes*(ielem-1):dg.refelem.Nqnodes*ielem
             indexf = 1+dg.refelem.Nfnodes*dg.refelem.Nfaces*(ielem-1):dg.refelem.Nfnodes*dg.refelem.Nfaces*ielem
             indexb = 1+dg.refelem.Nbnodes*(ielem-1):dg.refelem.Nbnodes*ielem
@@ -56,7 +64,7 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
             uv = @view uq[indexv,:]
             uf = @view un[indexf,:]
 
-            F = compute_two_pt_flux(uv, uf, param)
+            F = compute_two_pt_flux!(F, uv, uf, param) # in place computation two-point flux matrix
             two_pt_flux_to_ref!(F, ielem, dg)
 
             for dir in 1:dg.dim
