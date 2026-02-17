@@ -3,16 +3,16 @@ using Plots
 
 function test_DGFluxDiff_Chand_Euler_1D_OOA()
 
-    N = 6
+    N = 7
 
     param = parameters(
                         pdetype="EulerPerfGas",
                         dim=1,
                         dgtype="DGFluxDiff",
-                        bnodes="(3)-GL",
-                        qnodes="(4)-GLL",
-                        enodes="(10)-GLL",
-                        fnodes="(1)-GLL",
+                        bnodes="(7)-GL",
+                        qnodes="(8)-GL",
+                        enodes="(10)-GL",
+                        fnodes="(1)-GL",
                         refelem="interval",
                         domain="unit_interval_linear",
                         Neldim=2,
@@ -21,8 +21,8 @@ function test_DGFluxDiff_Chand_Euler_1D_OOA()
                         ICname="IsentropicDensityWave",
                         BCname="periodic",
                         ODE_solver="LSERK45",
-                        Nsteps=1000,
-                        dt=0.001,
+                        Nsteps=10000,
+                        dt=0.0001,
                         OOAtest=true,
                         gamma=1.4)
 
@@ -46,4 +46,43 @@ function test_DGFluxDiff_Chand_Euler_1D_OOA()
     println(OOA)
 
     return OOA
+end
+
+function test_DGFluxDiff_Chand_Euler_1D_ent()
+
+    param = parameters(
+                        pdetype="EulerPerfGas",
+                        dim=1,
+                        dgtype="DGFluxDiff",
+                        bnodes="(2)-GL",
+                        qnodes="(3)-GL",
+                        fnodes="(1)-GL",
+                        refelem="interval",
+                        domain="unit_interval_linear",
+                        Neldim=20,
+                        numfluxtype="EC_Chandrashekar",
+                        twoptfluxtype="EC_Chandrashekar",
+                        ICname="GaussianVelocity",
+                        BCname="periodic",
+                        ODE_solver="LSERK45",
+                        Nsteps=17000,
+                        dt=0.00001,
+                        calc_entropy=true,
+                        gamma=1.4)
+
+
+    output = set_up_and_solve(param)
+
+    p = plot(output["dg"].bpts, output["solution"], xlabel="x", ylabel="u", labels=["rho" "m" "E"])
+    display(p)
+
+    p = plot(collect(0.00001:0.00001:0.17), output["entropy"], xlabel="t", ylabel="S", legend=false)
+    display(p)
+
+    entropy_error = maximum(abs.(output["entropy"] .- output["entropy"][1]))
+
+    println("Entropy Error is:")
+    println(entropy_error)
+
+    return entropy_error
 end

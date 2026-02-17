@@ -44,6 +44,7 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
 
         up = dg.FtoF * un + evaluate_BC(BChandler, dg, t)
 
+        vf = vq = v = nothing
         residual .= 0.0
 
         # Volume terms
