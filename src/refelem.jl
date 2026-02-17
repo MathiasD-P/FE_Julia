@@ -16,6 +16,7 @@ struct RefElemStd <: AbstractRefElem
     fnodestype::Fnodes
 
     bnodes::Matrix{Float64}
+    qnodes::Matrix{Float64}
     fnodes::Matrix{Float64}
 
     nref::Vector{Vector{Float64}} # reference normal vectors
@@ -45,7 +46,7 @@ struct RefElemStd <: AbstractRefElem
         qnodestype = qnodestype
         fnodestype = fnodestype
 
-        chiq, wq, dchi, bnodes = extract_volume_operators(bnodestype, qnodestype)
+        chiq, wq, dchi, bnodes, qnodes = extract_volume_operators(bnodestype, qnodestype)
         chif, wf, fnodes = extract_face_operators(bnodestype, fnodestype)
 
         fnodes = vcat([fnodes[iface] for iface in 1:Nfaces]...)
@@ -71,6 +72,7 @@ struct RefElemStd <: AbstractRefElem
             fnodestype,
 
             bnodes,
+            qnodes,
             fnodes,
 
             nref,
@@ -102,6 +104,7 @@ struct RefElemSBP <: AbstractRefElem
     fnodestype::Fnodes
 
     bnodes::Matrix{Float64}
+    qnodes::Matrix{Float64}
     fnodes::Matrix{Float64}
 
     nref::Vector{Vector{Float64}} # reference normal vectors
@@ -133,7 +136,7 @@ struct RefElemSBP <: AbstractRefElem
         qnodestype = qnodestype
         fnodestype = fnodestype
 
-        chiq, wq, dchi, bnodes = extract_volume_operators(bnodestype, qnodestype)
+        chiq, wq, dchi, bnodes, qnodes = extract_volume_operators(bnodestype, qnodestype)
         chif, wf, fnodes = extract_face_operators(bnodestype, fnodestype)
 
         fnodes = vcat([fnodes[iface] for iface in 1:Nfaces]...)
@@ -175,6 +178,7 @@ struct RefElemSBP <: AbstractRefElem
             fnodestype,
 
             bnodes,
+            qnodes,
             fnodes,
 
             nref,

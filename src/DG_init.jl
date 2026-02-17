@@ -14,6 +14,7 @@ mutable struct DGStd <: DG
     BFtoF::Vector{SparseVector{Float64, Int64}} # (Ntags,) Vector  of (,NFval) vectors identifying the face nodes for each tag
 
     bpts::Matrix{Float64} # (DOF, dim) matrix storing the physical coordinates of the basis points
+    qpts::Matrix{Float64} # (Nquad, dim) matrix storing the physical coordinates of the quadrature points
     bfpts::Vector{Matrix{Float64}} # (Ntags,) Vector of (Ntaggedpts, dim) vectors for the physical coordinates of the face points tagged
 
     function DGStd(Nstates::Integer, refelem::RefElemStd, mesh::AbstractMesh)
@@ -32,6 +33,7 @@ mutable struct DGStd <: DG
         BFtoF = compute_BFtoF(mesh, refelem)
 
         bpts = reduce(vcat, mapping(mesh, refelem.bnodes, ielem) for ielem in 1:mesh.Nel)
+        qpts = reduce(vcat, mapping(mesh, refelem.qnodes, ielem) for ielem in 1:mesh.Nel)
         fpts = reduce(vcat, mapping(mesh, refelem.fnodes, ielem) for ielem in 1:mesh.Nel)
         bfpts = [fpts[BFtoF[itag] .== 1,:] for itag in 1:mesh.Ntags]
 
@@ -49,6 +51,7 @@ mutable struct DGStd <: DG
             BFtoF,
 
             bpts,
+            qpts,
             bfpts
         )
     end
@@ -68,6 +71,7 @@ mutable struct DGFluxDiff <: DG
     BFtoF::Vector{SparseVector{Float64, Int64}} # (Ntags,) Vector  of (,NFval) vectors identifying the face nodes for each tag
 
     bpts::Matrix{Float64} # (DOF, dim) matrix storing the physical coordinates of the basis points
+    qpts::Matrix{Float64} # (Nquad, dim) matrix storing the physical coordinates of the quadrature points
     bfpts::Vector{Matrix{Float64}} # (Ntags,) Vector of (Ntaggedpts, dim) vectors for the physical coordinates of the face points tagged
 
     function DGFluxDiff(Nstates::Integer, refelem::RefElemSBP, mesh::AbstractMesh)
@@ -86,6 +90,7 @@ mutable struct DGFluxDiff <: DG
         BFtoF = compute_BFtoF(mesh, refelem)
 
         bpts = reduce(vcat, mapping(mesh, refelem.bnodes, ielem) for ielem in 1:mesh.Nel)
+        qpts = reduce(vcat, mapping(mesh, refelem.qnodes, ielem) for ielem in 1:mesh.Nel)
         fpts = reduce(vcat, mapping(mesh, refelem.fnodes, ielem) for ielem in 1:mesh.Nel)
         bfpts = [fpts[BFtoF[itag] .== 1,:] for itag in 1:mesh.Ntags]
 
@@ -103,6 +108,7 @@ mutable struct DGFluxDiff <: DG
             BFtoF,
 
             bpts,
+            qpts,
             bfpts
         )
     end

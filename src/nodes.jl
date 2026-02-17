@@ -160,13 +160,14 @@ function extract_volume_operators(basisnodes::Tensorprod_nodes, volnodes::Tensor
     dV = DLagrange_Vandermonde1D(xi_vol, xi_basis)
 
     if basisnodes.dim == 1
-        return V, vec(w), [dV], xi_basis
+        return V, vec(w), [dV], xi_basis, xi_vol
     elseif basisnodes.dim == 2
         chivol = Vandermonde_tensorprod(V, V)
         wvol = vec(w * transpose(w))
         dchivol = [Vandermonde_tensorprod(dV, V), Vandermonde_tensorprod(V, dV)]
         solpts = point_tensorprod(xi_basis,xi_basis)
-        return chivol, wvol, dchivol, solpts
+        qpts = point_tensorprod(xi_vol,xi_vol)
+        return chivol, wvol, dchivol, solpts, qpts
     end
 end
 

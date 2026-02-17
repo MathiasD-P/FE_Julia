@@ -27,6 +27,13 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
             @views residual[index,:] .= residual[index,:] ./ dg.mesh.detJ[ielem]
         end
 
+        # Add source (if applicable)
+        if !(isnothing(param.sourcename))
+
+            block_matmul_add(residual)
+            residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(dg, param, dg.qpts, t), dg.mesh.Nel)
+        end
+
         return residual
     end
 end
@@ -86,6 +93,11 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
             @views residual[index,:] .= residual[index,:] ./ dg.mesh.detJ[ielem]
         end
 
+        # Add source (if applicable)
+        if !(isnothing(param.sourcename))
+            residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(dg, param, dg.qpts, t), dg.mesh.Nel)
+        end
+
         return residual
     end
 end
@@ -112,6 +124,18 @@ function block_matmul!(out::AbstractArray, block::AbstractArray, myvec::Abstract
     Ncolb = size(block,2)
 
     mul!(out, block, reshape(myvec, (Ncolb,div(Nrowv * Ncolv,Ncolb))))
+    out = reshape(out, (N*Nrowb, Ncolv))
+
+    return nothing
+end
+
+function block_matmul_add!(out::AbstractArray, block::AbstractArray, myvec::AbstractArray, N::Integer)
+    Nrowv = size(myvec,1)
+    Ncolv = size(myvec,2)
+    Nrowb = size(block,1)
+    Ncolb = size(block,2)
+
+    mul!(out, block, reshape(myvec, (Ncolb,div(Nrowv * Ncolv,Ncolb))), 1.0, 1.0)
     out = reshape(out, (N*Nrowb, Ncolv))
 
     return nothing

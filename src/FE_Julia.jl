@@ -19,7 +19,7 @@ module FE_Julia
     include("parameters.jl")
     include("DG_init.jl")
     include("physics.jl")
-    include("BCsandICs.jl")
+    include("BCsICsSources.jl")
     include("build_residual.jl")
     include("ODE_solver.jl")
     include("postprocessing.jl")

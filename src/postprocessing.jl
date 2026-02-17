@@ -24,6 +24,9 @@ function compute_L2error(u, t, enodes::AbstractNodes, dg::DG, param::parameters)
             if param.BCname == "periodic"
                 if param.ICname == "IsentropicDensityWave"
                     error2 = (block_matmul(chie, u, dg.mesh.Nel) .- initialize_states(dg, param, epts .- 0.1 * t)).^2
+                
+                elseif param.ICname == "GassnerEuler"
+                    error2 = (block_matmul(chie, u, dg.mesh.Nel) .- initialize_states(dg, param, epts .- 2 * t)).^2
                 end
             end
         end

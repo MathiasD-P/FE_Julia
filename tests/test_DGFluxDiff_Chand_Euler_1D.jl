@@ -3,14 +3,14 @@ using Plots
 
 function test_DGFluxDiff_Chand_Euler_1D_OOA()
 
-    N = 7
+    N = 6
 
     param = parameters(
                         pdetype="EulerPerfGas",
                         dim=1,
                         dgtype="DGFluxDiff",
-                        bnodes="(7)-GL",
-                        qnodes="(8)-GL",
+                        bnodes="(3)-GL",
+                        qnodes="(4)-GL",
                         enodes="(10)-GL",
                         fnodes="(1)-GL",
                         refelem="interval",
@@ -18,11 +18,12 @@ function test_DGFluxDiff_Chand_Euler_1D_OOA()
                         Neldim=2,
                         numfluxtype="EC_Chandrashekar",
                         twoptfluxtype="EC_Chandrashekar",
-                        ICname="IsentropicDensityWave",
+                        ICname="GassnerEuler",
                         BCname="periodic",
+                        sourcename = "GassnerEuler",
                         ODE_solver="LSERK45",
-                        Nsteps=10000,
-                        dt=0.0001,
+                        Nsteps=1000,
+                        dt=0.001,
                         OOAtest=true,
                         gamma=1.4)
 
