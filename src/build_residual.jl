@@ -29,7 +29,6 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
 
         # Add source (if applicable)
         if !(isnothing(param.sourcename))
-
             block_matmul_add(residual)
             residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(dg, param, dg.qpts, t), dg.mesh.Nel)
         end
@@ -95,6 +94,7 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
 
         # Add source (if applicable)
         if !(isnothing(param.sourcename))
+            block_matmul_add(residual)
             residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(dg, param, dg.qpts, t), dg.mesh.Nel)
         end
 
