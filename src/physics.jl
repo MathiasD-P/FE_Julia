@@ -164,6 +164,19 @@ function compute_local_entropy(u::AbstractArray, param::parameters)
 end
 
 #####################################################################
+# Compute Entropy Potentials
+#####################################################################
+
+function compute_potential_evar(v::AbstractArray, param::parameters)
+    if param.pdetype == "Burgers"
+        return (1/6) .* v.^3
+    elseif param.pdetype == "EulerPerfGas"
+        rhoe = Euler_evar_intenergy(v, param)
+        return v[:,2:1+param.dim] .* rhoe
+    end
+end
+
+#####################################################################
 # Euler helper functions
 #####################################################################
 

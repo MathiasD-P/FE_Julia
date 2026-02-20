@@ -1,3 +1,7 @@
+#####################################################################
+# Assemble residual for different DG flavours
+#####################################################################
+
 function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGStd, param::parameters)
     # For a linear mesh, we can simplify the computation
     if dg.mesh isa LMesh
@@ -101,10 +105,36 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
 end
 
 function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGArtVisc, param::parameters)
+    if dg.mesh isa LMesh
+         # We start by computing the entropy-projected solution (volume and face)
+        vq = compute_evar(block_matmul(dg.refelem.chiq, u, dg.mesh.Nel), param) # Compute entropy variables at vol quadrature points
+        vf = block_matmul(dg.refelem.Ph, vq, dg.mesh.Nel) # Project entropy variables
+        vf = block_matmul(dg.refelem.chif, vf, dg.mesh.Nel)
+
+        un = compute_cvar(vf, param)
+
+        up = dg.FtoF * un + evaluate_BC(BChandler, dg, t)
+
+        residual .= 0.0
+
+        # Volume terms
+        for ielem = 1:dg.mesh.Nel
+            indexb = 1+dg.refelem.Nbnodes*(ielem-1):dg.refelem.Nbnodes*ielem
+
+            # We start by computing elemental viscosity
+
+            # We then
+        end
+
+    end
 end
 
 function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGEntFilt, param::parameters)
 end
+
+#####################################################################
+# Other helper functions
+#####################################################################
 
 function block_matmul(block::AbstractArray, myvec::AbstractArray, N::Integer) # Block * v
     Nrowv = size(myvec,1)
