@@ -104,8 +104,9 @@ function compute_two_pt_flux!(F::Union{Tuple{Array{Float64}}, Tuple{Array{Float6
             end
 
             @inbounds for dir in 1:param.dim
-                @views F[dir][i,j,:] = f[dir][:]
-                @views F[dir][j,i,:] = f[dir][:]
+                fv = @view f[dir][1,:]
+                @views F[dir][i,j,:] = fv
+                @views F[dir][j,i,:] = fv
             end
         end
     end

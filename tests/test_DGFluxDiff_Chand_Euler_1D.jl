@@ -9,9 +9,9 @@ function test_DGFluxDiff_Chand_Euler_1D_OOA()
                         pdetype="EulerPerfGas",
                         dim=1,
                         dgtype="DGFluxDiff",
-                        bnodes="(3)-GL",
-                        qnodes="(4)-GL",
-                        enodes="(10)-GL",
+                        bnodes="(6)-GL",
+                        qnodes="(7)-GL",
+                        enodes="(12)-GL",
                         fnodes="(1)-GL",
                         refelem="interval",
                         domain="unit_interval_linear",
@@ -22,8 +22,8 @@ function test_DGFluxDiff_Chand_Euler_1D_OOA()
                         BCname="periodic",
                         sourcename = "GassnerEuler",
                         ODE_solver="LSERK45",
-                        Nsteps=1000,
-                        dt=0.001,
+                        Nsteps=4000,
+                        dt=0.00025,
                         OOAtest=true,
                         gamma=1.4)
 
