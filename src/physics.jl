@@ -56,9 +56,24 @@ function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Union{Ab
 
     elseif param.pdetype == "EulerPerfGas"
         if param.numfluxtype == "central"
-            return 0.5 .* (Euler_physflux(up, param) .+ Euler_physflux(un, param))
+            fp = Euler_physflux(up, param)
+            fn = Euler_physflux(up, param)
+            for dir in 1:param.dim
+                fn[dir] .= fn[dir] .+ fp[dir]
+            end
+            return fn
+
         elseif param.numfluxtype == "EC_Chandrashekar"
             return Euler_numflux_Chandrashekar(up, un, param)
+
+        elseif param.numfluxtype == "ES_Chandrashekar_dissip"
+            f = Euler_numflux_Chandrashekar(up, un, param)
+            d = Euler_numdissip_ES(un, up, nphys, param)
+            for dir in 1:param.dim
+                f[dir] .= f[dir] .+ d[dir]
+            end
+            return f
+
         else
             error("Undefined numerical flux!")
         end
@@ -330,7 +345,7 @@ end
 
 
 # Numerical fluxes, ONLY FOR 1D right now
-function Euler_numflux_Chandrashekar(up::AbstractMatrix, un::AbstractMatrix, param::parameters) # copied from (Chan 2018)
+function Euler_numflux_Chandrashekar(un::AbstractMatrix, up::AbstractMatrix, param::parameters) # copied from (Chan 2018)
     if param.dim == 1
         f1 = Array{Float64}(undef, size(up)...)
 
@@ -347,11 +362,11 @@ function Euler_numflux_Chandrashekar(up::AbstractMatrix, un::AbstractMatrix, par
 
         return (f1,)
     else
-        error("Invalid number of dimensions.")
+        error("Chandrashekar flux only implemented in 1D.")
     end
 end
 
-function Euler_numflux_Chandrashekar(up::AbstractVector, un::AbstractVector, param::parameters)
+function Euler_numflux_Chandrashekar(un::AbstractVector, up::AbstractVector, param::parameters)
     if param.dim == 1
         f1 = Vector{Float64}(undef, 3)
 
@@ -368,6 +383,80 @@ function Euler_numflux_Chandrashekar(up::AbstractVector, un::AbstractVector, par
 
         return (f1,)
     else
-        error("Invalid number of dimensions.")
+        error("Chandrashekar flux only implemented in 1D.")
+    end
+end
+
+
+function Euler_numdissip_ES(un::AbstractMatrix, up::AbstractArray, nphys::AbstractMatrix, param::parameters) # copied from (Chan 2018)
+    if param.dim == 1
+        d1 = Array{Float64}(undef, size(up)...)
+
+        wjump = (Euler_evar(up, param) - Euler_evar(un, param)) .* nphys # WOULD BE MUCH MORE EFFICIENT IF WE COULD USE THE ENTROPY VARS AS INPUT
+
+        # We iterate to find the diffusion term (too expensive to do in omne shot)
+        R = [1.0 1.0 1.0; 0 0 0 ; 0 0 0] # prealloc for R
+
+        for index in axes(d1,1)
+            velp = up[index,2] ./ up[index,1]
+            veln = un[index,2] ./ un[index,1]
+            velavg = 0.5 * (velp + veln)
+            vel2avg = 2 * velavg^2 - 0.5 * (veln^2 + veln^2)
+
+            pn = Euler_pressure(up[index,:], param)
+            pp = Euler_pressure(un[index,:], param)
+
+            rholn = logmean(up[index,1], un[index,1])
+            betaln = logmean(0.5 * up[index,1] / pn, 0.5 * un[index,1] / pp)
+
+            abar = sqrt(0.5 * param.gamma * (pn + pp)/rholn)
+            hbar = param.gamma/(2.0*betaln*(param.gamma-1.0)) + 0.5 * vel2avg
+
+            R[2,1] = velavg - abar ; R[2,2] = velavg ; R[2,3] = velavg + abar
+            R[3,1] = hbar - velavg*abar ; R[3,2] = 0.5*vel2avg ; R[3,3] = hbar + velavg * abar
+
+            Lambda = abs.([velavg - abar, velavg, velavg + abar])
+            T = [rholn/2.0/param.gamma, rholn * (param.gamma-1.0)/param.gamma, rholn/2.0/param.gamma]
+
+            d1[index,:] = -0.5 * R * Diagonal(Lambda) * Diagonal(T) * R' * wjump[index,:]
+        end
+
+        return (d1,)
+    else
+        error("Chandrashekar flux only implemented in 1D.")
+    end
+end
+
+function Euler_numdissip_ES(un::AbstractVector, up::AbstractVector, nphys::AbstractVector, param::parameters) # copied from (Chan 2018)
+    if param.dim == 1
+
+        wjump = (Euler_evar(up, param) - Euler_evar(un, param)) .* nphys[1] # WOULD BE MUCH MORE EFFICIENT IF WE COULD USE THE ENTROPY VARS AS INPUT
+
+        velp = up[2] ./ up[1]
+        veln = un[2] ./ un[1]
+        velavg = 0.5 * (velp + veln)
+        vel2avg = 2 * velavg^2 - 0.5 * (veln^2 + veln^2)
+
+        pn = Euler_pressure(up, param)
+        pp = Euler_pressure(un, param)
+
+        rholn = logmean(up[1], un[1])
+        betaln = logmean(0.5 * up[1] / pn, 0.5 * un[1] / pp)
+
+        abar = sqrt(0.5 * param.gamma * (pn + pp)/rholn)
+        hbar = param.gamma/(2.0*betaln*(param.gamma-1.0)) + 0.5 * vel2avg
+
+        R = [1.0 1.0 1.0;
+             velavg - abar velavg velavg + abar ;
+             hbar - velavg*abar 0.5*vel2avg hbar + velavg * abar]
+
+        Lambda = abs.([velavg - abar, velavg, velavg + abar])
+        T = [rholn/2.0/param.gamma, rholn * (param.gamma-1.0)/param.gamma, rholn/2.0/param.gamma]
+
+        d1 = -0.5 * R * Diagonal(Lambda) * Diagonal(T) * R' * wjump
+
+        return (d1,)
+    else
+        error("Chandrashekar flux only implemented in 1D.")
     end
 end
