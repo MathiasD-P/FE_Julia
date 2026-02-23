@@ -20,7 +20,7 @@ function compute_physflux(u::AbstractArray, param::parameters)
         @inbounds @simd for index in axes(u,1)
             @views localflux = Euler_physflux(u[index,:], param)
             for dir in 1:param.dim
-                f[dir][index,:] .= localflux[dir]
+                @views f[dir][index,:] = localflux[dir]
             end
         end
 
@@ -70,13 +70,13 @@ function compute_numflux(un::AbstractArray, up::AbstractArray, nphys::Union{Abst
             if param.numfluxtype == "central"
                 @views localflux = 0.5 .* (Euler_physflux(un[index,:], param) .+ Euler_physflux(up[index,:], param))
             elseif param.numfluxtype == "EC_Chandrashekar"
-                @views localflux = Euler_numflux_Chandrashekar(up[index,:], un[index,:], param)
+                localflux = Euler_numflux_Chandrashekar(@view(up[index,:]), @view(un[index,:]), param)
             else
                 error("Undefined numerical flux!")
             end
 
             for dir in 1:param.dim
-                f[dir][index,:] .= localflux[dir]
+                @views f[dir][index,:] = localflux[dir]
             end
         end
 
@@ -142,7 +142,7 @@ function compute_evar(u::AbstractArray, param::parameters)
     elseif param.pdetype == "EulerPerfGas"
         v = Matrix{Float64}(undef, size(u)...)
         @inbounds @simd for index in axes(u,1)
-            @views v[index,:] .= Euler_evar(u[index,:], param)
+            @views v[index,:] = Euler_evar(u[index,:], param)
         end
 
         return v
@@ -155,7 +155,7 @@ function compute_cvar(v::AbstractArray, param::parameters)
     elseif param.pdetype == "EulerPerfGas"
         u = Matrix{Float64}(undef, size(v)...)
         @inbounds @simd for index in axes(v,1)
-            @views u[index,:] .= Euler_cvar(v[index,:], param)
+            @views u[index,:] = Euler_cvar(v[index,:], param)
         end
 
         return u
@@ -174,7 +174,7 @@ function compute_local_entropy(u::AbstractArray, param::parameters)
     elseif param.pdetype == "EulerPerfGas"
         s = Matrix{Float64}(undef, (size(u,1),1))
         @inbounds @simd for index in axes(u,1)
-            @views s[index] .= -u[index,1] .* Euler_cvar_entropy(u[index,:], param)
+            @views s[index] = -u[index,1] .* Euler_cvar_entropy(u[index,:], param)
         end
 
         return s
@@ -223,7 +223,7 @@ function Euler_evar(u::AbstractVector, param::parameters)
     rhoe = Euler_cvar_intenergy(u,param)
     s = Euler_cvar_entropy(u, param)
 
-    v = Vector{Float64}(undef, length(u))
+    v = Vector{Float64}(undef, param.dim+2)
     v[1] = (-s + param.gamma + 1) - u[end] / rhoe
     v[2:1+param.dim] .= u[2:1+param.dim] ./ rhoe
     v[end] = -u[1] / rhoe
@@ -235,9 +235,9 @@ end
 function Euler_cvar(v::AbstractVector, param::parameters)
     rhoe = Euler_evar_intenergy(v, param)
 
-    u = Vector{Float64}(undef, length(v))
+    u = Vector{Float64}(undef, param.dim+2)
     u[1] = -rhoe * v[end]
-    u[2:1+param.dim] .= v[2:1+param.dim] .* rhoe
+    @views u[2:1+param.dim] .= v[2:1+param.dim] .* rhoe
     u[end] = rhoe * (1 - 0.5 * sum(v[2:1+param.dim].^2) /  v[end])
 
     return u
@@ -260,7 +260,7 @@ end
 function Euler_physflux(u::AbstractVector, param::parameters)
     p = Euler_pressure(u, param)
 
-    f1 = Vector{Float64}(undef, length(u))
+    f1 = Vector{Float64}(undef, param.dim+2)
     f1[1] = u[2]
     @views f1[2:param.dim+1] .=  u[2:param.dim+1] .* u[2] ./  u[1]
     f1[2] = f1[2] + p
@@ -269,7 +269,7 @@ function Euler_physflux(u::AbstractVector, param::parameters)
     if param.dim == 1
         return (f1,)
     elseif param.dim == 2
-        f2 = Vector{Float64}(undef, length(u))
+        f2 = Vector{Float64}(undef, param.dim+2)
         f2[1] = u[3]
         f2[2] = f1[3]
         f2[3] = u[3]^2 /  u[1] + p
@@ -283,7 +283,7 @@ end
 # ONLY FOR 1D RIGHT NOW
 function Euler_numflux_Chandrashekar(up::AbstractVector, un::AbstractVector, param::parameters) # copied from (Chan 2018)
     if param.dim == 1
-        f1 = Vector{Float64}(undef, length(up))
+        f1 = Vector{Float64}(undef, 3)
 
         velp = up[2] / up[1]
         veln = un[2] / un[1]
