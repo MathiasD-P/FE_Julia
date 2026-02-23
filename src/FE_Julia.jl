@@ -1,7 +1,6 @@
 module FE_Julia
     using SparseArrays
     using LinearAlgebra
-    import CSV
     using Plots
 
     import FastGaussQuadrature
