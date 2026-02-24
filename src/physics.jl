@@ -8,7 +8,7 @@
 # Physical Fluxes
 #####################################################################
 
-function compute_physflux(u::AbstractArray, param::parameters)
+function compute_physflux(u::AbstractMatrix, param::parameters)
     if param.pdetype == "LinAdv"
         return (param.a .* u,)
 
@@ -26,7 +26,7 @@ end
 # Numerical Fluxes
 #####################################################################
 
-function compute_numflux(un::AbstractArray, up::AbstractArray, nphys::Union{AbstractArray,Nothing}, param::parameters)
+function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Union{AbstractMatrix,Nothing}, param::parameters)
     if param.pdetype == "LinAdv"
         if param.numfluxtype == "central"
             return (0.5 .* param.a .* (up .+ un),)
@@ -56,9 +56,24 @@ function compute_numflux(un::AbstractArray, up::AbstractArray, nphys::Union{Abst
 
     elseif param.pdetype == "EulerPerfGas"
         if param.numfluxtype == "central"
-            return 0.5 .* (Euler_physflux(up, param) .+ Euler_physflux(un, param))
+            fp = Euler_physflux(up, param)
+            fn = Euler_physflux(up, param)
+            for dir in 1:param.dim
+                fn[dir] .= fn[dir] .+ fp[dir]
+            end
+            return fn
+
         elseif param.numfluxtype == "EC_Chandrashekar"
             return Euler_numflux_Chandrashekar(up, un, param)
+
+        elseif param.numfluxtype == "ES_Chandrashekar_dissip"
+            f = Euler_numflux_Chandrashekar(up, un, param)
+            d = Euler_numdissip_ES(un, up, nphys, param)
+            for dir in 1:param.dim
+                f[dir] .= f[dir] .+ d[dir]
+            end
+            return f
+
         else
             error("Undefined numerical flux!")
         end
@@ -69,22 +84,22 @@ end
 # Two-point Fluxes
 #####################################################################
 
-function compute_two_pt_flux!(F::Union{Tuple{Array{Float64}}, Tuple{Array{Float64}, Array{Float64}}}, u::AbstractArray, uf::AbstractArray, param::parameters)
+function compute_two_pt_flux!(F::Union{Tuple{Array{Float64}}, Tuple{Array{Float64}, Array{Float64}}}, u::AbstractMatrix, uf::AbstractMatrix, param::parameters)
     M, = size(u,1)
     Npts = size(F[1], 1)
 
     @inbounds for j in 1:Npts
         if j > M
-            up = (@view uf[j - M,:])'
+            up = (@view uf[j - M,:])
         else
-            up = (@view u[j,:])'
+            up = (@view u[j,:])
         end
         
         @inbounds for i in 1:(j-1) # Note that we "skip" the diagonal!
             if i > M
-                un = (@view uf[i - M,:])'
+                un = (@view uf[i - M,:])
             else
-                un = (@view u[i,:])'
+                un = (@view u[i,:])
             end
 
             if param.pdetype == "Burgers"
@@ -104,9 +119,8 @@ function compute_two_pt_flux!(F::Union{Tuple{Array{Float64}}, Tuple{Array{Float6
             end
 
             @inbounds for dir in 1:param.dim
-                fv = @view f[dir][1,:]
-                @views F[dir][i,j,:] = fv
-                @views F[dir][j,i,:] = fv
+                @views F[dir][i,j,:] = f[dir]
+                @views F[dir][j,i,:] = f[dir]
             end
         end
     end
@@ -118,34 +132,19 @@ end
 # Entropy mappings
 #####################################################################
 
-function compute_evar(u::AbstractArray, param::parameters)
+function compute_evar(u::AbstractMatrix, param::parameters)
     if param.pdetype == "Burgers"
         return u
     elseif param.pdetype == "EulerPerfGas"
-        rhoe = Euler_cvar_intenergy(u,param)
-        s = Euler_cvar_entropy(u, param)
-
-        v = Array{Float64}(undef, size(u)...)
-        @views v[:,1] .= (-s .+ param.gamma .+ 1) .- u[:,end] ./ rhoe
-        @views v[:,2:1+param.dim] .= u[:,2:1+param.dim] ./ rhoe
-        @views v[:,end] .= -u[:,1] ./ rhoe
-
-        return v
+        return Euler_evar(u, param)
     end
 end
 
-function compute_cvar(v::AbstractArray, param::parameters)
+function compute_cvar(v::AbstractMatrix, param::parameters)
     if param.pdetype == "Burgers"
         return v
     elseif param.pdetype == "EulerPerfGas"
-        rhoe = Euler_evar_intenergy(v, param)
-
-        u = Array{Float64}(undef, size(v)...)
-        @views u[:,1] .= -rhoe .* v[:,end]
-        @views u[:,2:1+param.dim] .= v[:,2:1+param.dim] .* rhoe
-        @views u[:,end] .= rhoe .* (1 .- 0.5 .* sum(v[:,2:1+param.dim].^2, dims=2) ./  v[:,end])
-
-        return u
+        return Euler_cvar(v, param)
     end
 end
 
@@ -153,7 +152,7 @@ end
 # Compute Entropy
 #####################################################################
 
-function compute_local_entropy(u::AbstractArray, param::parameters)
+function compute_local_entropy(u::AbstractMatrix, param::parameters)
     if param.pdetype == "LinAdv"
         return 0.5 .* u.^2
     elseif param.pdetype == "Burgers"
@@ -181,7 +180,7 @@ end
 #####################################################################
 
 # (\rho * e)(u)
-function Euler_cvar_intenergy(u::AbstractArray, param::parameters)
+function Euler_cvar_intenergy(u::AbstractMatrix, param::parameters)
     if param.dim == 1
         return u[:,end] .- 0.5 .* u[:,2].^2 ./ u[:,1]
     elseif param.dim == 2
@@ -189,18 +188,38 @@ function Euler_cvar_intenergy(u::AbstractArray, param::parameters)
     end
 end
 
+
+function Euler_cvar_intenergy(u::AbstractVector, param::parameters)
+    if param.dim == 1
+        return u[end] - 0.5 * u[2]^2 / u[1]
+    elseif param.dim == 2
+        return u[end] - 0.5 * (u[2]^2 + u[3]^2) / u[1]
+    end
+end
+
+
 # (\rho * e)(v)
-function Euler_evar_intenergy(v::AbstractArray, param::parameters)
+function Euler_evar_intenergy(v::AbstractMatrix, param::parameters)
     return ((param.gamma-1) ./ (-v[:,end]).^param.gamma).^(1/(param.gamma-1)) .* exp.(-Euler_evar_entropy(v,param) ./ (param.gamma-1))
 end
 
+function Euler_evar_intenergy(v::AbstractVector, param::parameters)
+    return ((param.gamma-1) / (-v[end])^param.gamma)^(1/(param.gamma-1)) * exp(-Euler_evar_entropy(v,param) / (param.gamma-1))
+end
+
+
 # (s / cv)(u)
-function Euler_cvar_entropy(u::AbstractArray, param::parameters)
+function Euler_cvar_entropy(u::AbstractMatrix, param::parameters)
     return log.(Euler_pressure(u, param) ./ u[:,1].^param.gamma)
 end
 
+function Euler_cvar_entropy(u::AbstractVector, param::parameters)
+    return log(Euler_pressure(u, param) / u[1]^param.gamma)
+end
+
+
 # (s / cv)(v)
-function Euler_evar_entropy(v::AbstractArray, param::parameters)
+function Euler_evar_entropy(v::AbstractMatrix, param::parameters)
     if param.dim == 1
         return param.gamma .- v[:,1] .+ 0.5 .* v[:,2].^2 ./ v[:,end]
     elseif param.dim == 2
@@ -208,10 +227,74 @@ function Euler_evar_entropy(v::AbstractArray, param::parameters)
     end
 end
 
+function Euler_evar_entropy(v::AbstractVector, param::parameters)
+    if param.dim == 1
+        return param.gamma - v[1] + 0.5 * v[2]^2 / v[end]
+    elseif param.dim == 2
+        return param.gamma - v[1] + 0.5 * (v[2]^2 + v[3]^2) ./ v[end]
+    end
+end
+
+
+# v(u)
+function Euler_evar(u::AbstractMatrix, param::parameters)
+    rhoe = Euler_cvar_intenergy(u,param)
+    s = Euler_cvar_entropy(u, param)
+
+    v = Array{Float64}(undef, size(u)...)
+    @views v[:,1] .= (-s .+ param.gamma .+ 1) .- u[:,end] ./ rhoe
+    @views v[:,2:1+param.dim] .= u[:,2:1+param.dim] ./ rhoe
+    @views v[:,end] .= -u[:,1] ./ rhoe
+
+    return v
+end
+
+function Euler_evar(u::AbstractVector, param::parameters)
+    rhoe = Euler_cvar_intenergy(u,param)
+    s = Euler_cvar_entropy(u, param)
+
+    v = Vector{Float64}(undef, param.dim+2)
+    v[1] = (-s + param.gamma + 1) - u[end] / rhoe
+    v[2:1+param.dim] .= u[2:1+param.dim] ./ rhoe
+    v[end] = -u[1] / rhoe
+
+    return v
+end
+
+
+# u(v)
+function Euler_cvar(v::AbstractMatrix, param::parameters)
+    rhoe = Euler_evar_intenergy(v, param)
+
+    u = Array{Float64}(undef, size(v)...)
+    @views u[:,1] .= -rhoe .* v[:,end]
+    @views u[:,2:1+param.dim] .= v[:,2:1+param.dim] .* rhoe
+    @views u[:,end] .= rhoe .* (1 .- 0.5 .* sum(v[:,2:1+param.dim].^2, dims=2) ./  v[:,end])
+
+    return u
+end
+
+function Euler_cvar(v::AbstractVector, param::parameters)
+    rhoe = Euler_evar_intenergy(v, param)
+
+    u = Vector{Float64}(undef, param.dim+2)
+    u[1] = -rhoe * v[end]
+    @views u[2:1+param.dim] .= v[2:1+param.dim] .* rhoe
+    u[end] = rhoe * (1 - 0.5 * sum(v[2:1+param.dim].^2) /  v[end])
+
+    return u
+end
+
+
 # p(u)
-function Euler_pressure(u::AbstractArray, param::parameters)
+function Euler_pressure(u::AbstractMatrix, param::parameters)
     return (param.gamma - 1) .* Euler_cvar_intenergy(u, param)
 end
+
+function Euler_pressure(u::AbstractVector, param::parameters)
+    return (param.gamma - 1) * Euler_cvar_intenergy(u, param)
+end
+
 
 # logmean
 function logmean(up::Float64, un::Float64)
@@ -226,8 +309,9 @@ function logmean(up::Float64, un::Float64)
     end
 end
 
+
 # f_dir
-function Euler_physflux(u::AbstractArray, param::parameters)
+function Euler_physflux(u::AbstractMatrix, param::parameters)
     p = Euler_pressure(u, param)
 
     f1 = Array{Float64}(undef, size(u)...)
@@ -247,11 +331,34 @@ function Euler_physflux(u::AbstractArray, param::parameters)
 
         return (f1, f2)
     end
+end
+
+function Euler_physflux(u::AbstractVector, param::parameters)
+    p = Euler_pressure(u, param)
+
+    f1 = Vector{Float64}(undef, param.dim+2)
+    f1[1] = u[2]
+    @views f1[2:param.dim+1] .=  u[2:param.dim+1] .* u[2] ./  u[1]
+    f1[2] = f1[2] + p
+    f1[end] = (p + u[end]) * u[2] / u[1]
+
+    if param.dim == 1
+        return (f1,)
+    elseif param.dim == 2
+        f2 = Vector{Float64}(undef, param.dim+2)
+        f2[1] = u[3]
+        f2[2] = f1[3]
+        f2[3] = u[3]^2 /  u[1] + p
+        f2[end] = (p + u[end]) * (u[3]/ u[1])
+
+        return (f1, f2)
+    end
 
 end
 
-# ONLY FOR 1D RIGHT NOW
-function Euler_numflux_Chandrashekar(up::AbstractArray, un::AbstractArray, param::parameters) # copied from (Chan 2018)
+
+# Numerical fluxes, ONLY FOR 1D right now
+function Euler_numflux_Chandrashekar(un::AbstractMatrix, up::AbstractMatrix, param::parameters) # copied from (Chan 2018)
     if param.dim == 1
         f1 = Array{Float64}(undef, size(up)...)
 
@@ -268,6 +375,101 @@ function Euler_numflux_Chandrashekar(up::AbstractArray, un::AbstractArray, param
 
         return (f1,)
     else
-        error("Invalid number of dimensions.")
+        error("Chandrashekar flux only implemented in 1D.")
+    end
+end
+
+function Euler_numflux_Chandrashekar(un::AbstractVector, up::AbstractVector, param::parameters)
+    if param.dim == 1
+        f1 = Vector{Float64}(undef, 3)
+
+        velp = up[2] / up[1]
+        veln = un[2] / un[1]
+        velavg = 0.5 * (velp + veln)
+
+        betap = 0.5 * up[1] / Euler_pressure(up, param)
+        betan = 0.5 * un[1] / Euler_pressure(un, param)
+
+        f1[1] = logmean(up[1], un[1]) * velavg[1]
+        f1[2] = 0.5 * (up[1] + un[1]) / (betap + betan) + velavg * f1[1]
+        f1[3] = f1[1] * (0.5 / (param.gamma-1) / logmean(betan,betap) - 0.25 * (velp^2 + veln^2)) + velavg * f1[2]
+
+        return (f1,)
+    else
+        error("Chandrashekar flux only implemented in 1D.")
+    end
+end
+
+
+function Euler_numdissip_ES(un::AbstractMatrix, up::AbstractArray, nphys::AbstractMatrix, param::parameters) # copied from (Chan 2018)
+    if param.dim == 1
+        d1 = Array{Float64}(undef, size(up)...)
+
+        wjump = (Euler_evar(up, param) - Euler_evar(un, param)) .* nphys # WOULD BE MUCH MORE EFFICIENT IF WE COULD USE THE ENTROPY VARS AS INPUT
+
+        # We iterate to find the diffusion term (too expensive to do in omne shot)
+        R = [1.0 1.0 1.0; 0 0 0 ; 0 0 0] # prealloc for R
+
+        for index in axes(d1,1)
+            velp = up[index,2] ./ up[index,1]
+            veln = un[index,2] ./ un[index,1]
+            velavg = 0.5 * (velp + veln)
+            vel2avg = 2 * velavg^2 - 0.5 * (veln^2 + veln^2)
+
+            pn = Euler_pressure(up[index,:], param)
+            pp = Euler_pressure(un[index,:], param)
+
+            rholn = logmean(up[index,1], un[index,1])
+            betaln = logmean(0.5 * up[index,1] / pn, 0.5 * un[index,1] / pp)
+
+            abar = sqrt(0.5 * param.gamma * (pn + pp)/rholn)
+            hbar = param.gamma/(2.0*betaln*(param.gamma-1.0)) + 0.5 * vel2avg
+
+            R[2,1] = velavg - abar ; R[2,2] = velavg ; R[2,3] = velavg + abar
+            R[3,1] = hbar - velavg*abar ; R[3,2] = 0.5*vel2avg ; R[3,3] = hbar + velavg * abar
+
+            Lambda = abs.([velavg - abar, velavg, velavg + abar])
+            T = [rholn/2.0/param.gamma, rholn * (param.gamma-1.0)/param.gamma, rholn/2.0/param.gamma]
+
+            d1[index,:] = -0.5 * R * Diagonal(Lambda) * Diagonal(T) * R' * wjump[index,:]
+        end
+
+        return (d1,)
+    else
+        error("Chandrashekar flux only implemented in 1D.")
+    end
+end
+
+function Euler_numdissip_ES(un::AbstractVector, up::AbstractVector, nphys::AbstractVector, param::parameters) # copied from (Chan 2018)
+    if param.dim == 1
+
+        wjump = (Euler_evar(up, param) - Euler_evar(un, param)) .* nphys[1] # WOULD BE MUCH MORE EFFICIENT IF WE COULD USE THE ENTROPY VARS AS INPUT
+
+        velp = up[2] ./ up[1]
+        veln = un[2] ./ un[1]
+        velavg = 0.5 * (velp + veln)
+        vel2avg = 2 * velavg^2 - 0.5 * (veln^2 + veln^2)
+
+        pn = Euler_pressure(up, param)
+        pp = Euler_pressure(un, param)
+
+        rholn = logmean(up[1], un[1])
+        betaln = logmean(0.5 * up[1] / pn, 0.5 * un[1] / pp)
+
+        abar = sqrt(0.5 * param.gamma * (pn + pp)/rholn)
+        hbar = param.gamma/(2.0*betaln*(param.gamma-1.0)) + 0.5 * vel2avg
+
+        R = [1.0 1.0 1.0;
+             velavg - abar velavg velavg + abar ;
+             hbar - velavg*abar 0.5*vel2avg hbar + velavg * abar]
+
+        Lambda = abs.([velavg - abar, velavg, velavg + abar])
+        T = [rholn/2.0/param.gamma, rholn * (param.gamma-1.0)/param.gamma, rholn/2.0/param.gamma]
+
+        d1 = -0.5 * R * Diagonal(Lambda) * Diagonal(T) * R' * wjump
+
+        return (d1,)
+    else
+        error("Chandrashekar flux only implemented in 1D.")
     end
 end
