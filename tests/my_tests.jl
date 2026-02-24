@@ -2,8 +2,6 @@ using FE_Julia
 using DelimitedFiles
 using Plots
 
-include("my_tests_parameters.jl")
-
 function test_OOA(param, Nrefinements; filename=nothing)
     if !(param.OOAtest)
         param.OOAtest=true
@@ -62,7 +60,7 @@ function test_OOA(param, Nrefinements; filename=nothing)
         end
     end
 
-    return
+    return OOA
 end
 
 function test_entropy(param; filename=nothing)
@@ -105,5 +103,5 @@ function test_entropy(param; filename=nothing)
         end
     end
 
-    return
+    return entropy_error
 end
