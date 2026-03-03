@@ -131,7 +131,7 @@ mutable struct DGArtVisc <: DG
     qpts::Matrix{Float64} # (Nquad, dim) matrix storing the physical coordinates of the quadrature points
     bfpts::Vector{Matrix{Float64}} # (Ntags,) Vector of (Ntaggedpts, dim) vectors for the physical coordinates of the face points tagged
 
-    function DGStd(Nstates::Integer, refelem::RefElemStd, mesh::AbstractMesh)
+    function DGArtVisc(Nstates::Integer, refelem::RefElemStd, mesh::AbstractMesh)
         DOF = refelem.Nbnodes * mesh.Nel
         NFval = refelem.Nfnodes * refelem.Nfaces * mesh.Nel
 

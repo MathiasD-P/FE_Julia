@@ -28,6 +28,8 @@ mutable struct parameters
     Nsteps::Union{Integer,Nothing}
     dt::Union{Real,Nothing}
 
+    AVcoeff::Union{String,Nothing} # only for artificial viscosity
+
     # Auxilliary computations?
     save::Bool
     calc_entropy::Bool
@@ -57,6 +59,7 @@ mutable struct parameters
                      ODE_solver=nothing,
                      Nsteps=nothing,
                      dt=nothing,
+                     AVcoeff=nothing,
                      save=false,
                      calc_entropy=false,
                      OOAtest=false,
@@ -64,7 +67,7 @@ mutable struct parameters
                      gamma=nothing,
                      a=nothing)
 
-                     new(pdetype, dim, dgtype, bnodes, qnodes, fnodes, enodes, refelem, domain, Neldim, numfluxtype, twoptfluxtype, ICname, BCname, sourcename, ODE_solver, Nsteps, dt, save, calc_entropy, OOAtest, Nrefinements, gamma,a)
+                     new(pdetype, dim, dgtype, bnodes, qnodes, fnodes, enodes, refelem, domain, Neldim, numfluxtype, twoptfluxtype, ICname, BCname, sourcename, ODE_solver, Nsteps, dt, AVcoeff, save, calc_entropy, OOAtest, Nrefinements, gamma,a)
     end
 end
 

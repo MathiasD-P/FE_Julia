@@ -166,13 +166,42 @@ end
 # Compute Entropy Potentials
 #####################################################################
 
-function compute_potential_evar(v::AbstractArray, param::parameters)
+function compute_cvar_potential(u::AbstractArray, param::parameters)
     if param.pdetype == "Burgers"
-        return (1/6) .* v.^3
+        return ((1/6) .* u.^3,)
     elseif param.pdetype == "EulerPerfGas"
-        rhoe = Euler_evar_intenergy(v, param)
-        return v[:,2:1+param.dim] .* rhoe
+        return Tuple((param.gamma-1) .* u[:,istate] for istate in 2:1+param.dim) # CAREFUL, MISTAKE IN (Chan, 2025)
     end
+end
+
+#####################################################################
+# Compute Entropy Hessian
+#####################################################################
+
+function compute_cvar_Hessian(u::AbstractVector, param::parameters) # Operates on one node at the time.
+    if param.pdetype == "Burgers"
+        K = Matrix{Float64}(undef, 1, 1)
+        K[1,1] = 1.0
+        return K
+    elseif param.pdetype == "EulerPerfGas"
+        return Euler_cvar_Hessian(u, param)
+    end
+end
+
+#####################################################################
+# Artifical viscosity coefficient
+#####################################################################
+
+function AV_coeff(delta, den, param)
+    tol = 1e-14 # tolerance to avoid vanishing denominator
+
+    if param.AVcoeff == "AVdissip"
+        a = -min(0, delta)
+    elseif param.AVcoeff == "AVEC"
+        a = -delta
+    end
+
+    return a * den / (tol + den^2)
 end
 
 #####################################################################
@@ -296,11 +325,33 @@ function Euler_pressure(u::AbstractVector, param::parameters)
 end
 
 
+# (\partial u / \partial v)(u)
+function Euler_cvar_Hessian(u::AbstractVector, param::parameters) # copied from (Chan, 2025)
+    if param.dim == 1
+        K = Matrix{Float64}(undef,3,3)
+
+        p = Euler_pressure(u, param)
+        a2 = param.gamma * Euler_pressure(u, param) / u[1]
+
+        K[1,:] = u
+        K[2,2] = u[2]^2 / u[1] + p
+        K[2,3] = u[2] / u[1] * (u[end] + p)
+        K[3,3] = u[1] * (a2 / (param.gamma-1) + 0.5 * u[2]^2 / u[1])^2 - a2 * p / (param.gamma - 1)
+
+        copyto!(K, Symmetric(K, :U)) # symmetrize
+
+        return K
+    else
+        error("Euler Hessian only implemented in 1D.")
+    end
+end
+
+
 # logmean
 function logmean(up::Float64, un::Float64)
-    epsilon = 1e-2 # tolerance for logmean computation
+    tol = 1e-2 # tolerance for logmean computation
 
-    if abs(up - un) < epsilon # Roe simplification for up -> un
+    if abs(up - un) < tol # Roe simplification for up -> un
         r = up/un
         a = ((r - 1) / (r + 1))^2
         return 0.5 * (up + un) / (1 + a/3 + a^2/5 + a^3/7)
@@ -401,7 +452,7 @@ function Euler_numflux_Chandrashekar(un::AbstractVector, up::AbstractVector, par
 end
 
 
-function Euler_numdissip_ES(un::AbstractMatrix, up::AbstractArray, nphys::AbstractMatrix, param::parameters) # copied from (Chan 2018)
+function Euler_numdissip_ES(un::AbstractMatrix, up::AbstractArray, nphys::AbstractMatrix, param::parameters) # copied from (Gassner, Kopriva, Winters, Hindenlang, 2018)
     if param.dim == 1
         d1 = Array{Float64}(undef, size(up)...)
 

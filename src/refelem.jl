@@ -28,6 +28,8 @@ struct RefElemStd <: AbstractRefElem
     M::Matrix{Float64}# reference mass matrix
     bh::Vector{Vector{Float64}} # boundary integration weights times ref normal
     Dh::Vector{Matrix{Float64}} # reference differentiation matrix in each direction
+    Qh::Vector{Matrix{Float64}} # reference stiffness matrix in each direction
+    MinvQhT::Vector{Matrix{Float64}} # for weak DG on linear meshes
     Ph::Matrix{Float64} # reference projection matrix
     LIFT::Vector{Matrix{Float64}} # lifting operator in each direction
 
@@ -55,7 +57,9 @@ struct RefElemStd <: AbstractRefElem
 
         M = chiq' * Diagonal(wq) * chiq
         Ph = (M \ chiq' * Diagonal(wq))
-        Dh = (d -> M \ (chiq' * Diagonal(wq)) * d).(dchi)
+        Qh = (d -> chiq' * Diagonal(wq) * d).(dchi)
+        Dh = (q -> M \ q).(Qh)
+        MinvQhT = (q -> M \ q').(Qh)
         LIFT = (b -> (M \ chif') * Diagonal(b)).(bh)
 
         new(
@@ -84,6 +88,8 @@ struct RefElemStd <: AbstractRefElem
             M,
             bh,
             Dh,
+            Qh,
+            MinvQhT,
             Ph,
             LIFT
         )
