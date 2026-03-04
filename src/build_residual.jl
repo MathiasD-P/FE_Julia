@@ -7,7 +7,7 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
     if dg.mesh isa LMesh
         # We compute the projected reference flux
         flux = compute_physflux(block_matmul(dg.refelem.chiq, u, dg.mesh.Nel), param)
-        flux_to_ref!(flux, dg)
+        flux_to_ref!(flux, dg.refelem.Nqnodes, dg)
         flux = Tuple(block_matmul(dg.refelem.Ph, flux[dir], dg.mesh.Nel) for dir in 1:dg.dim)
 
         # Now, we interpolate the projected flux to the faces
@@ -17,7 +17,7 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
         un = block_matmul(dg.refelem.chif, u, dg.mesh.Nel)
         up = dg.FtoF * un + evaluate_BC(BChandler, dg, t)
         numflux = compute_numflux(un, up, dg.nphys, param)
-        flux_to_ref!(numflux, dg)
+        flux_to_ref!(numflux, dg.refelem.Nfnodes, dg)
 
         # Assemble complete residual (volume and face)
         residual .= 0.0
@@ -83,7 +83,7 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
 
         # Surface term
         numflux = compute_numflux(un, up, dg.nphys, param)
-        flux_to_ref!(numflux, dg)
+        flux_to_ref!(numflux, dg.refelem.Nqnodes, dg)
         for dir in 1:dg.dim
             @views residual .= residual .- block_matmul((dg.refelem.LIFT[dir]), numflux[dir], dg.mesh.Nel)
         end
@@ -132,7 +132,7 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
 
         # We compute the projected reference flux (we'll need it a few times)
         flux = compute_physflux(uq, param)
-        flux_to_ref!(flux, dg)
+        flux_to_ref!(flux, dg.refelem.Nqnodes, dg)
         flux = Tuple(block_matmul(dg.refelem.Ph, flux[dir], dg.mesh.Nel) for dir in 1:dg.dim)
 
         # Artificial viscosity
@@ -143,7 +143,7 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
 
             # Elemental entropy deficit
             @views psi = compute_cvar_potential(un[indexf,:], param)
-            flux_to_ref!(psi, dg)
+            flux_to_ref!(psi, dg.refelem.Nfnodes, dg)
 
             delta = 0.0
             for dir in 1:dg.dim
@@ -176,7 +176,7 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
 
         # PRIMARY PROBLEM
         numflux = compute_numflux(un, up, dg.nphys, param)
-        flux_to_ref!(numflux, dg)
+        flux_to_ref!(numflux, dg.refelem.Nfnodes, dg)
 
         residual .= 0.0
         for dir in 1:dg.dim
@@ -242,14 +242,14 @@ function block_matmul_add!(out::AbstractArray, block::AbstractArray, myvec::Abst
 end
 
 # OPTIMIZE THIS FUNCTION LATER. MAYBE IN-PLACE REPLACEMENT IS NOT THE BEST OPTION (I was only thinking about)...
-function flux_to_ref!(f::Tuple, dg::DG) # this is a global operation
+function flux_to_ref!(f::Tuple, Nnodes::Integer, dg::DG) # this is a global operation
     if dg.dim == 1
         return nothing
     elseif dg.dim == 2
         if dg.mesh isa LMesh
-            ftemp = zeros((dg.refelem.Nbnodes, dg.Nstates))
+            ftemp = zeros((Nnodes, dg.Nstates))
             for ielem in 1:dg.mesh.Nel
-                index = 1+dg.refelem.Nbnodes*(ielem-1):dg.refelem.Nbnodes*ielem
+                index = 1+Nnodes*(ielem-1):Nnodes*ielem
                 @views ftemp .= dg.mesh.CT[ielem][1,1] .* f[1][index,:] .+ dg.mesh.CT[ielem][1,2] .* f[2][index,:]
                 @views f[2][index,:] .= dg.mesh.CT[ielem][2,1] .* f[1][index,:] .+ dg.mesh.CT[ielem][2,2] .* f[2][index,:]
                 @views f[1][index,:] .= ftemp
@@ -274,14 +274,14 @@ function two_pt_flux_to_ref!(F::Tuple, iele::Integer, dg::DG) # this is a local 
     end
 end
 
-function grad_to_ref(u::AbstractArray, dir::Integer, dg::DG) # this is a global operation
+function grad_to_ref(u::AbstractArray, Nnodes::Integer, dir::Integer, dg::DG) # this is a global operation
     if dg.dim == 1
         return (u,)
     elseif dg.dim == 2
         if dg.mesh isa LMesh
-            f = (Matrix{Float64}(undef, dg.refelem.Nbnodes, dg.Nstates), Matrix{Float64}(undef, dg.refelem.Nbnodes, dg.Nstates))
+            f = (Matrix{Float64}(undef, Nnodes, dg.Nstates), Matrix{Float64}(undef, Nnodes, dg.Nstates))
             for ielem in 1:dg.mesh.Nel
-                index = 1+dg.refelem.Nbnodes*(ielem-1):dg.refelem.Nbnodes*ielem
+                index = 1+Nnodes*(ielem-1):dg.Nnodes*ielem
                 f[1][index,:] .= dg.mesh.CT[1,dir] .* u
                 f[2][index,:] .= dg.mesh.CT[2,dir] .* u
             end
@@ -302,8 +302,8 @@ function AV_auxiliary1(v::AbstractMatrix, vn::AbstractMatrix, vp::AbstractMatrix
 
         for dir1 in 1:dg.dim
             # Map entropy quantities to ref elem
-            v = grad_to_ref(v, dir1, dg)
-            vjump = grad_to_ref(vjump, dir1, dg)
+            v = grad_to_ref(v, dg.refelem.Nbnodes, dir1, dg)
+            vjump = grad_to_ref(vjump, dg.refelem.Nbnodes, dir1, dg)
 
             for dir2 in 1:dg.dim
             @views theta[dir1] .= theta[dir1] .+ block_matmul(dg.refelem.Dh[dir2], v[dir2], dg.mesh.Nel) .+ 0.5 .* block_matmul((dg.refelem.LIFT[dir2]), vjump[dir2], dg.mesh.Nel)
@@ -324,8 +324,8 @@ function AV_auxiliary2(sigma::Tuple, sigman::Tuple, sigmap::Tuple, dg::DGArtVisc
     if dg.mesh isa LMesh
         gvisc = zeros(dg.DOF, dg.Nstates)
         sigmanum = 0.5 .* (sigman .+ sigmap) # We use central viscous fluxes as in (Chan, 2025)
-        flux_to_ref!(sigma, dg)
-        flux_to_ref!(sigmanum, dg)
+        flux_to_ref!(sigma, dg.refelem.Nbnodes, dg)
+        flux_to_ref!(sigmanum, dg.refelem.Nfnodes, dg)
 
         for dir in 1:dg.dim
             @views gvisc .= gvisc .- block_matmul(dg.refelem.MinvQhT[dir], sigma[dir], dg.mesh.Nel) .+ block_matmul((dg.refelem.LIFT[dir]), sigmanum[dir], dg.mesh.Nel)
