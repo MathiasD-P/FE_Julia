@@ -39,6 +39,10 @@ function test_OOA(param, Nrefinements; filename=nothing)
         writedlm(stdout, error)
         print("\n")
     else
+        if !(isdir("outputs"))
+            mkdir("outputs")
+        end
+        
         open("outputs/" * filename, "w") do IO
             writedlm(IO, tab_title)
             writedlm(IO, error)
@@ -80,6 +84,10 @@ function test_entropy(param; filename=nothing)
         println(entropy_error)
 
     else
+        if !(isdir("outputs"))
+            mkdir("outputs")
+        end
+
         open("outputs/" * filename, "w") do IO
             writedlm(IO, ["time" "Entropy"])
             writedlm(IO, entropy)
