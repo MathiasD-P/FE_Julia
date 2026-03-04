@@ -67,6 +67,9 @@ function set_up_and_solve(param::parameters)
     elseif param.dgtype == "DGFluxDiff"
         refelem = RefElemSBP(bnodes, qnodes, fnodes)
         dg = DGFluxDiff(Nstates, refelem, mesh)
+    elseif param.dgtype == "DGArtVisc"
+        refelem = RefElemStd(bnodes, qnodes, fnodes)
+        dg = DGArtVisc(Nstates, refelem, mesh)
     else
         error("Unknown DG type!")
     end

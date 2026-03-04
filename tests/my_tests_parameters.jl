@@ -75,6 +75,30 @@ function make_my_tests_parameters(testname::String)
                         dt=0.0001,
                         OOAtest=true,
                         gamma=1.4)
+
+    elseif occursin(r"test_OOA_DGArtVisc_Chand_Euler_1D_p.*$", testname)
+        p = parse(Int, match(r"test_OOA_DGArtVisc_Chand_Euler_1D_p(.*)$", testname)[1])
+        param = parameters(
+                        pdetype="EulerPerfGas",
+                        dim=1,
+                        dgtype="DGArtVisc",
+                        bnodes="("*string(p+1)*")-GL",
+                        qnodes="("*string(p+1)*")-GL",
+                        enodes="(12)-GL",
+                        fnodes="(1)-GL",
+                        refelem="interval",
+                        domain="unit_interval_linear",
+                        Neldim=2,
+                        numfluxtype="ES_Chandrashekar_dissip",
+                        AVcoeff="AVEC",
+                        ICname="GassnerEuler",
+                        BCname="periodic",
+                        sourcename = "GassnerEuler",
+                        ODE_solver="LSERK45",
+                        Nsteps=10000,
+                        dt=0.0001,
+                        OOAtest=true,
+                        gamma=1.4)
     
     elseif occursin(r"test_ent_DGStd_Chand_Euler_1D_p.*$", testname)
         p = parse(Int, match(r"test_ent_DGStd_Chand_Euler_1D_p(.*)$", testname)[1])

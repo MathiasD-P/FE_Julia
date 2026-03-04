@@ -106,7 +106,8 @@ end
 function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGArtVisc, param::parameters)
     if dg.mesh isa LMesh
         # We start by computing the projected entropy variables and we evaluate face quantities
-        v = compute_evar(block_matmul(dg.refelem.chiq, u, dg.mesh.Nel), param)
+        uq = block_matmul(dg.refelem.chiq, u, dg.mesh.Nel)
+        v = compute_evar(uq, param)
         v = block_matmul(dg.refelem.Ph, v, dg.mesh.Nel)
 
         vn = block_matmul(dg.refelem.chif, v, dg.mesh.Nel)
@@ -118,7 +119,6 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
         theta = AV_auxiliary1(v, vn, vp, dg)
 
         # We compute projected scaled entropy gradient
-        uq = block_matmul(dg.refelem.chiq, u, dg.mesh.Nel)
         thetaq = Tuple(block_matmul(dg.refelem.chiq, theta[dir], dg.mesh.Nel) for dir in 1:dg.dim)
         thetaK = Tuple(Matrix{Float64}(undef, dg.mesh.Nel*dg.refelem.Nqnodes, dg.Nstates) for dir in 1:dg.dim)
 
@@ -191,9 +191,7 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
 
         # Viscous correction
         residual .= residual .+ gvisc
-        # p1 = plot(dg.bpts, sigma[1])
-        # display(p1)
-
+        
         # Add source (if applicable)
         if !(isnothing(param.sourcename))
             residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(dg, param, dg.qpts, t), dg.mesh.Nel)

@@ -201,6 +201,10 @@ function AV_coeff(delta, den, param)
         a = -delta
     end
 
+    # if abs(den) < 1e-12
+    #     println("Careful, visc denominator < 1e-12!")
+    # end
+
     return a * den / (tol + den^2)
 end
 
