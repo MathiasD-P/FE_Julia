@@ -8,7 +8,7 @@
 using FE_Julia
 
 function make_my_tests_parameters(testname::String)
-    if testname == occursin(r"test_OOA_DGStd_LinAdv_1D_p.*$", testname)
+    if occursin(r"test_OOA_DGStd_LinAdv_1D_p.*$", testname)
         p = parse(Int, match(r"test_OOA_DGStd_LinAdv_1D_p(.*)$", testname)[1])
         param = parameters(
                         pdetype="LinAdv",
@@ -163,6 +163,9 @@ function make_my_tests_parameters(testname::String)
                         Nsteps=10000,
                         dt=0.00002,
                         calc_entropy=true)
+
+    else
+        error("Undefined test case name!")
     end
 
     return param

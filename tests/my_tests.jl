@@ -3,25 +3,15 @@ using DelimitedFiles
 using Plots
 
 function test_OOA(param, Nrefinements; filename=nothing)
-    if !(param.OOAtest)
-        param.OOAtest=true
-    end
+    param.OOAtest=true
+    param.calc_entropy=false
 
-    if param.calc_entropy
-        error = zeros((Nrefinements,3))
-        tab_title = ["DOF" "L2 Error" "Entropy Error"]
-    else
-        error = zeros((Nrefinements,2))
-        tab_title = ["DOF" "L2 Error"]
-    end
+    error = zeros((Nrefinements,3))
+    tab_title = ["DOF" "L2 Error" "OOA"]
 
     for i in 1:Nrefinements
         output = set_up_and_solve(param)
         error[i,1:2] = [output["dg"].DOF, output["L2error"]]
-
-        if param.calc_entropy
-            error[i,3] = maximum(abs.(output["entropy"] .- output["entropy"][1]))
-        end
 
         param.Neldim = param.Neldim * 2 #refine mesh
 
@@ -36,31 +26,27 @@ function test_OOA(param, Nrefinements; filename=nothing)
         end
     end
 
-    OOA = (log(error[end,2]) - log(error[end-1,2])) / (log(error[end,1]) - log(error[end-1,1]))
-
     # We plot the convergence of the L2 error vs DOF
     p2 = scatter(log10.(error[:,1]), log10.(error[:,2]), ylabel="log10(L2)", xlabel="log10(DOF)")
     display(p2)
+
+    # Compute OOA and package
+    error[2:end,3] .= (log.(error[2:end,2]) .- log.(error[1:end-1,2])) ./ (log.(error[2:end,1]) .- log.(error[1:end-1,1]))
 
     # Now we print in REPL or save
     if isnothing(filename)
         writedlm(stdout, tab_title)
         writedlm(stdout, error)
         print("\n")
-        print("Order of accuracy: ")
-        println(OOA)
-
     else
         open("outputs/" * filename, "w") do IO
             writedlm(IO, tab_title)
             writedlm(IO, error)
             print(IO, "\n")
-            print(IO, "Order of accuracy: ")
-            println(IO, OOA)
         end
     end
 
-    return OOA
+    return error[end,3]
 end
 
 function test_entropy(param; filename=nothing)
