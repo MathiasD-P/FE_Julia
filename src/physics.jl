@@ -199,11 +199,13 @@ function AV_coeff(delta, den, param)
         a = -min(0, delta)
     elseif param.AVcoeff == "AVEC"
         a = -delta
+    elseif param.AVcoeff == "NoAV"
+        a = 0
     end
 
-    # if abs(den) < 1e-12
-    #     println("Careful, visc denominator < 1e-12!")
-    # end
+    if abs(den) < 1e-12 && abs(den) < abs(delta)
+        println("Careful, visc denominator < 1e-12!")
+    end
 
     return a * den / (tol + den^2)
 end
