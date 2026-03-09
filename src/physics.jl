@@ -196,11 +196,11 @@ function AV_coeff(delta, den, param)
     tol = 1e-14 # tolerance to avoid vanishing denominator
 
     if param.AVcoeff == "AVdissip"
-        a = -min(0, delta)
+        a = -min(0.0, delta)
     elseif param.AVcoeff == "AVEC"
         a = -delta
     elseif param.AVcoeff == "NoAV"
-        a = 0
+        a = 0.0
     end
 
     if abs(den) < 1e-12 && abs(den) < abs(delta)

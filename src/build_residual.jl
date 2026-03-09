@@ -103,7 +103,12 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
     end
 end
 
-function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGArtVisc, param::parameters)
+function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGArtVisc, param::parameters, debug=false)
+    # If the user wants to know the values for the entropy deficit and artificial viscosity..
+    if debug
+        debug_data = Dict("delta" => Vector{Float64}(undef, dg.mesh.Nel), "visc" => Vector{Float64}(undef, dg.mesh.Nel))
+    end
+
     if dg.mesh isa LMesh
         # We start by computing the projected entropy variables and we evaluate face quantities
         uq = block_matmul(dg.refelem.chiq, u, dg.mesh.Nel)
@@ -156,7 +161,7 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
             # Entropy denominator
             den = 0.0
             for dir in 1:dg.dim, istate in 1:dg.Nstates
-                @views den += sum(thetaK[dir][indexb,istate]' * dg.refelem.M * theta[dir][indexb,istate]) # since we are using a block diagonal K as in (Chan 2025)
+                @views den += thetaK[dir][indexb,istate]' * dg.refelem.M * theta[dir][indexb,istate] # since we are using a block diagonal K as in (Chan 2025)
             end
             den *= dg.mesh.detJ[ielem] # scale by Jacobian
 
@@ -166,6 +171,12 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
             # We finally build the viscous entropy fluxes
             for dir in 1:dg.dim
                 @views sigma[dir][indexb,:] .= epsilon .* thetaK[dir][indexb,:]
+            end
+
+            # If debug mode is activated, store entropy deficit and viscosity
+            if debug
+                (debug_data["delta"])[ielem] = delta
+                (debug_data["visc"])[ielem] = epsilon
             end
         end
 
@@ -197,7 +208,11 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
             residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(dg, param, dg.qpts, t), dg.mesh.Nel)
         end
 
-        return residual
+        if debug
+            return residual, debug_data
+        else
+            return residual
+        end
     end
 end
 

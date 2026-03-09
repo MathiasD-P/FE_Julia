@@ -37,6 +37,18 @@ function initialize_states(dg::DG, param::parameters, pts = nothing)
 
         return u
     
+    elseif param.ICname == "ChanWave" # Scaled test case used by (Chan 2025) to investigate convergence of viscosity and entropy deficit.
+        if param.dim != 1
+            error("Only works for 1D right now!")
+        end
+
+        A = 0.5 # tunable wave amplitude
+        u[:,1] .= 1 .+ A .* sin.(2*pi.*pts .+ 0.1/2)
+        u[:,2] .= A .* sin.(2*pi.*pts .+ 0.2/2) .* u[:,1]
+        u[:,3] .= u[:,1].^param.gamma ./ (param.gamma-1) .+ 0.5 .* u[:,2].^2 ./ u[:,1]
+
+        return u
+    
     elseif param.ICname == "GaussianVelocity"
         u[:,1] .= 1.0
         u[:,2:end-1] .= exp.(-80 .* sum(pts.^2, dims=2)) .+ 1.0

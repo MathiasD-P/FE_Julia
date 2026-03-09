@@ -164,6 +164,25 @@ function make_my_tests_parameters(testname::String)
                         Nsteps=10000,
                         dt=0.00002,
                         calc_entropy=true)
+    
+    elseif occursin(r"test_visc_DGArtVisc_Chand_Euler_1D_p.*$", testname)
+        p = parse(Int, match(r"test_visc_DGArtVisc_Chand_Euler_1D_p(.*)$", testname)[1])
+        param = parameters(
+                        pdetype="EulerPerfGas",
+                        dim=1,
+                        dgtype="DGArtVisc",
+                        bnodes="("*string(p+1)*")-GL",
+                        qnodes="("*string(p+1)*")-GL",
+                        enodes="(15)-GL", # WE USE THESE NODES FOR L2 PROJ OF ICS
+                        fnodes="(1)-GL",
+                        refelem="interval",
+                        domain="unit_interval_linear",
+                        Neldim=3,
+                        numfluxtype="ES_Chandrashekar_dissip",
+                        AVcoeff="AVdissip",
+                        ICname="ChanWave",
+                        BCname="periodic",
+                        gamma=1.4)
 
     else
         error("Undefined test case name!")

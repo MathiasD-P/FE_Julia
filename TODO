@@ -1,0 +1,9 @@
+Urgent
+- Handle general BCs in DGArtVisc (WILL NOT WORK FOR NON_PERIODIC BCS)
+- Fix Sod Shock initialization, is not done properly right now
+
+Not urgent / Future optimizations
+- Add proper testing file to package
+- Add dg_initialize in main to avoid code duplication, will clean-up test_viscosity()
+- Use L2 projection from quadrature nodes for initialization instead of collocation proj on the basis nodes
+- Compute entropy at time zero when calc_entropy is activated (right now, it is only computed at t = \Delta t)
