@@ -84,7 +84,7 @@ function make_my_tests_parameters(testname::String)
                         dim=1,
                         dgtype="DGArtVisc",
                         bnodes="("*string(p+1)*")-GL",
-                        qnodes="("*string(p+1)*")-GL",
+                        qnodes="("*string(p+2)*")-GL",
                         enodes="(12)-GL",
                         fnodes="(1)-GL",
                         refelem="interval",
@@ -186,6 +186,27 @@ function make_my_tests_parameters(testname::String)
                         dt=0.00001,
                         calc_entropy=true,
                         gamma=1.4)
+    
+    elseif occursin(r"test_ent_DGArtVisc_Burgers_1D_p.*$", testname)
+        p = parse(Int, match(r"test_ent_DGArtVisc_Burgers_1D_p(.*)$", testname)[1])
+        param = parameters(
+                        pdetype="Burgers",
+                        dim=1,
+                        dgtype="DGArtVisc",
+                        bnodes="("*string(p+1)*")-GL",
+                        qnodes="("*string(p+1)*")-GL",
+                        fnodes="(1)-GL",
+                        refelem="interval",
+                        domain="unit_interval_linear",
+                        Neldim=20,
+                        numfluxtype="EC_split",
+                        AVcoeff="AVEC",
+                        ICname="exp_1state",
+                        BCname="periodic",
+                        ODE_solver="LSERK45",
+                        Nsteps=10000,
+                        dt=0.00002,
+                        calc_entropy=true)
     
     elseif occursin(r"test_visc_DGArtVisc_Chand_Euler_1D_p.*$", testname)
         p = parse(Int, match(r"test_visc_DGArtVisc_Chand_Euler_1D_p(.*)$", testname)[1])

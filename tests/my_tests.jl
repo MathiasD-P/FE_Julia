@@ -145,7 +145,7 @@ function test_viscosity(param, Nrefinements; filename)
         error[i,2] = maximum(abs.(debug_data["delta"]))
         error[i,4] = maximum((debug_data["visc"]))
 
-        param.Neldim = round(Int, param.Neldim * 1.3 + 0.5) #refine mesh
+        param.Neldim = round(Int, param.Neldim * 1.1 + 0.5) #refine mesh
     end
 
     # We plot the convergence of the L2 error vs DOF
