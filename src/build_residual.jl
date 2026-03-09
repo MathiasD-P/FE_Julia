@@ -313,7 +313,7 @@ end
 function AV_auxiliary1(v::AbstractMatrix, vn::AbstractMatrix, vp::AbstractMatrix, dg::DGArtVisc)
     if dg.mesh isa LMesh
         theta = Tuple(zeros(dg.DOF, dg.Nstates) for dir in 1:dg.dim)
-        vjump = 0.5 .* (vp .- vn) # We use a penalty term as in (Chan, 2025)
+        vjump = (vp .- vn) # We use a penalty term as in (Chan, 2025)
 
         for dir1 in 1:dg.dim
             # Map entropy quantities to ref elem
