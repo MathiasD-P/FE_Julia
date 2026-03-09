@@ -203,7 +203,7 @@ function AV_coeff(delta, den, param)
         a = 0.0
     end
 
-    if abs(den) < 1e-12 && abs(den) < abs(delta)
+    if abs(den) < 1e-12 && (abs(delta) / abs(den)) > 1/50
         println("Careful, visc denominator < 1e-12!")
     end
 
