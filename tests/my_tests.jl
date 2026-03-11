@@ -100,7 +100,7 @@ function test_entropy(param; filename=nothing)
     return entropy_error
 end
 
-function test_viscosity(param, Nrefinements; filename)
+function test_viscosity(param, Nrefinements; filename=nothing)
     if param.dgtype != "DGArtVisc"
         error("This test can only be applied to DGArtVisc!")
     end
@@ -108,8 +108,8 @@ function test_viscosity(param, Nrefinements; filename)
         error("You must provide enodes to project ICs.")
     end
 
-    error = zeros((Nrefinements,5))
-    tab_title = ["DOF" "Delta" "OOA" "Visc" "OOA"]
+    error = zeros((Nrefinements,6))
+    tab_title = ["DOF" "Delta" "OOA" "Visc" "OOA" "Den"]
 
     for i in 1:Nrefinements
         # initialize mesh and nodes
@@ -144,6 +144,7 @@ function test_viscosity(param, Nrefinements; filename)
         error[i,1] = dg.DOF
         error[i,2] = maximum(abs.(debug_data["delta"]))
         error[i,4] = maximum((debug_data["visc"]))
+        error[i,6] = minimum((debug_data["den"]))
 
         param.Neldim = round(Int, param.Neldim * 1.1 + 0.5) #refine mesh
     end
@@ -153,6 +154,7 @@ function test_viscosity(param, Nrefinements; filename)
     plot!(p2, [log10.(error[1,1]), log10.(error[end,1])], ([log10.(error[1,1]), log10.(error[end,1])] .- log10.(error[end,1])) .* -9 .+ log10.(error[end,2]))
     scatter!(p2, log10.(error[:,1]), log10.(error[:,4]), label="visc")
     plot!(p2, [log10.(error[1,1]), log10.(error[end,1])], ([log10.(error[1,1]), log10.(error[end,1])] .- log10.(error[end,1])) .* -6.5 .+ log10.(error[end,4]))
+    scatter!(p2, log10.(error[:,1]), log10.(error[:,6]), label="den")
     display(p2)
 
     # Compute OOA and package

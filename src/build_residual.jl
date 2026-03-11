@@ -106,7 +106,7 @@ end
 function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGArtVisc, param::parameters, debug=false)
     # If the user wants to know the values for the entropy deficit and artificial viscosity..
     if debug
-        debug_data = Dict("delta" => Vector{Float64}(undef, dg.mesh.Nel), "visc" => Vector{Float64}(undef, dg.mesh.Nel))
+        debug_data = Dict("delta" => Vector{Float64}(undef, dg.mesh.Nel), "visc" => Vector{Float64}(undef, dg.mesh.Nel), "den" => Vector{Float64}(undef, dg.mesh.Nel))
     end
 
     if dg.mesh isa LMesh
@@ -177,6 +177,7 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
             if debug
                 (debug_data["delta"])[ielem] = delta
                 (debug_data["visc"])[ielem] = epsilon
+                (debug_data["den"])[ielem] = den
             end
         end
 
@@ -194,14 +195,14 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
             @views residual .= residual .+ block_matmul(dg.refelem.MinvQhT[dir], flux[dir], dg.mesh.Nel) .- block_matmul((dg.refelem.LIFT[dir]), numflux[dir], dg.mesh.Nel) # weak DG
         end
 
+        # Viscous correction
+        residual .= residual .+ gvisc
+
         # Scale by Jacobian
         for ielem = 1:dg.mesh.Nel
             index = 1+dg.refelem.Nbnodes*(ielem-1):dg.refelem.Nbnodes*ielem
             @views residual[index,:] .= residual[index,:] ./ dg.mesh.detJ[ielem]
         end
-
-        # Viscous correction
-        residual .= residual .+ gvisc
         
         # Add source (if applicable)
         if !(isnothing(param.sourcename))
@@ -344,12 +345,6 @@ function AV_auxiliary2(sigma::Tuple, sigman::Tuple, sigmap::Tuple, dg::DGArtVisc
 
         for dir in 1:dg.dim
             @views gvisc .= gvisc .- block_matmul(dg.refelem.MinvQhT[dir], sigma[dir], dg.mesh.Nel) .+ block_matmul((dg.refelem.LIFT[dir]), sigmanum[dir], dg.mesh.Nel)
-        end
-
-        # We finally scale by Jacobian
-        for ielem = 1:dg.mesh.Nel
-            index = 1+dg.refelem.Nbnodes*(ielem-1):dg.refelem.Nbnodes*ielem
-            @views gvisc[index,:] .= gvisc[index,:] ./ dg.mesh.detJ[ielem]
         end
 
         return gvisc

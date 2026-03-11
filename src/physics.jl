@@ -203,7 +203,12 @@ function AV_coeff(delta, den, param)
         a = 0.0
     end
 
-    if abs(den) < 1e-12 && (abs(delta) / abs(den)) > 1/50
+    # Clip entropy deficit to avoid error leakage
+    if abs(a) < 2.5e-15
+        a = 0.0
+    end
+
+    if abs(den) < 1e-12 && (abs(delta) / abs(den)) > 1
         println("Careful, visc denominator < 1e-12!")
     end
 
