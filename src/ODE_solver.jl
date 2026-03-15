@@ -26,6 +26,7 @@ function ODE_solver(u0::Matrix{Float64}, BChandler::Dict, dg::DG, param::paramet
                 2802321613138.0/2924317926251.0);
         RKstages = 5
 
+        # Required initializations for LSERK45
         u = u0
         current_time = 0.0
         residual = zeros(size(u))
@@ -48,12 +49,35 @@ function ODE_solver(u0::Matrix{Float64}, BChandler::Dict, dg::DG, param::paramet
             end
         end
 
-        if param.calc_entropy
-            return Dict("solution" => u, "time" => current_time, "entropy" => S)
-        else
-            return Dict("solution" => u, "time" => current_time)
-        end
+    elseif param.ODE_solver == "SSPRK33"
+        # Required initializations for SSPRK33
+        ubuff = copy(u0)
+        u = u0
+        current_time = 0.0
+        rhs = Matrix{Float64}(undef, size(u)...)
 
+        for istep in 1:param.Nsteps
+            rhs = build_residual!(rhs, u, current_time, BChandler, dg, param)
+            @. ubuff = u + param.dt * rhs
+
+            rhs = build_residual!(rhs, ubuff, current_time + param.dt, BChandler, dg, param)
+            @. ubuff = 0.75 * u + 0.25 * ubuff + 0.25 * param.dt * rhs
+
+            rhs = build_residual!(rhs, ubuff, current_time + 0.5 * param.dt, BChandler, dg, param)
+            @. u = (1/3) * u + (2/3) * ubuff + (2/3) * param.dt * rhs
+
+            if param.calc_entropy
+                S[istep] = compute_total_entropy(u, dg, param)
+            end
+
+            current_time += param.dt
+        end
+    end
+
+    if param.calc_entropy
+        return Dict("solution" => u, "time" => current_time, "entropy" => S)
+    else
+        return Dict("solution" => u, "time" => current_time)
     end
 end
 
