@@ -54,7 +54,7 @@ function ODE_solver(u0::Matrix{Float64}, BChandler::Dict, dg::DG, param::paramet
         ubuff = copy(u0)
         u = u0
         current_time = 0.0
-        rhs = Matrix{Float64}(undef, size(u)...)
+        rhs = Matrix{Float64}(undef, size(u0)...)
 
         for istep in 1:param.Nsteps
             rhs = build_residual!(rhs, u, current_time, BChandler, dg, param)
@@ -71,6 +71,71 @@ function ODE_solver(u0::Matrix{Float64}, BChandler::Dict, dg::DG, param::paramet
             end
 
             current_time += param.dt
+        end
+
+    elseif param.ODE_solver == "SSPRRK33" #NOT EFFICIENT JUST FOR TESTING, TEMPORAL DICRETIZATION IS NOT THE FOCUS OF OUR PROJECT
+        if param.pdetype != "Burgers"
+            error("Relaxation RK is only implemented for Burgers at the moment!")
+        end
+
+        RKa = [0.0  0.0;
+               1.0  0.0;
+               0.25 0.25];     
+        RKb = (1/6,
+               1/6,
+               2/3);
+        RKc = (0.0,
+               1.0,
+               0.5);
+        RKstages = 3
+
+        # Required initializations for SSPRK33
+        rhs = Tuple(Matrix{Float64}(undef, size(u0)...) for s in 1:3)
+        u = u0
+        ubuff = copy(u0)
+        current_time = 0.0
+
+        for istep in 1:param.Nsteps
+            build_residual!(rhs[1], u, current_time, BChandler, dg, param)
+            gammanum = 0.0
+            gammaden = 0.0
+
+            for stage in 2:RKstages
+                ubuff .= u
+                for istage in 1:stage-1
+                    @. ubuff += param.dt * RKa[stage, istage] * rhs[istage]
+                end
+
+                build_residual!(rhs[stage], ubuff, current_time + param.dt * RKc[stage], BChandler, dg, param)
+            end
+
+            for istage in 1:RKstages
+                for jstage in 1:istage
+                    if istage == jstage
+                        gammaden += RKb[istage] * RKb[jstage] * dot(rhs[istage], block_matmul(dg.refelem.M, rhs[jstage], dg.mesh.Nel))
+                    else
+                        delta = dot(rhs[istage], block_matmul(dg.refelem.M, rhs[jstage], dg.mesh.Nel))
+                        gammaden += 2 * RKb[istage] * RKb[jstage] * delta
+                        gammanum += RKb[istage] * RKa[istage, jstage] * delta
+                    end
+                end
+            end
+
+            if abs(gammaden) < 1e-15
+                gamma = 1.0
+            else
+                gamma = 2.0 * gammanum / gammaden
+            end
+
+            for stage in 1:RKstages
+                @. u += gamma * param.dt * RKb[stage] * rhs[stage]
+            end
+
+            current_time += param.dt
+
+            if param.calc_entropy
+                S[istep] = compute_total_entropy(u, dg, param)
+            end
         end
     end
 
