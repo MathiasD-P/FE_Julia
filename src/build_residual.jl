@@ -217,6 +217,9 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
     end
 end
 
+function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGAddRes, param::parameters)
+end
+
 function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGEntFilt, param::parameters)
 end
 
