@@ -70,6 +70,9 @@ function set_up_and_solve(param::parameters)
     elseif param.dgtype == "DGArtVisc"
         refelem = RefElemStd(bnodes, qnodes, fnodes)
         dg = DGArtVisc(Nstates, refelem, mesh)
+    elseif param.dgtype == "DGAddRes"
+        refelem = RefElemStd(bnodes, qnodes, fnodes)
+        dg = DGAddRes(Nstates, refelem, mesh)
     else
         error("Unknown DG type!")
     end
