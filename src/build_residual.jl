@@ -218,6 +218,84 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
 end
 
 function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGAddRes, param::parameters)
+    if dg.mesh isa LMesh
+        # We start by computing the projected entropy variables and we evaluate face quantities
+        uq = block_matmul(dg.refelem.chiq, u, dg.mesh.Nel)
+        v = compute_evar(uq, param)
+        v = block_matmul(dg.refelem.Ph, v, dg.mesh.Nel)
+
+        vn = block_matmul(dg.refelem.chif, v, dg.mesh.Nel)
+        un = compute_cvar(vn, param)
+        up = dg.FtoF * un + evaluate_BC(BChandler, dg, t)
+
+        # We compute the projected reference flux (we'll need it a few times)
+        flux = compute_physflux(uq, param)
+        flux_to_ref!(flux, dg.refelem.Nqnodes, dg)
+        flux = Tuple(block_matmul(dg.refelem.Ph, flux[dir], dg.mesh.Nel) for dir in 1:dg.dim)
+
+        # Start with entropy deficit term
+        oneMone = sum(dg.refelem.M)
+        for ielem = 1:dg.mesh.Nel
+            indexf = 1+dg.refelem.Nfnodes*dg.refelem.Nfaces*(ielem-1):dg.refelem.Nfnodes*dg.refelem.Nfaces*ielem
+            indexb = 1+dg.refelem.Nbnodes*(ielem-1):dg.refelem.Nbnodes*ielem
+
+            # Elemental entropy deficit
+            @views psi = compute_cvar_potential(un[indexf,:], param)
+            flux_to_ref!(psi, dg.refelem.Nfnodes, dg)
+
+            delta = 0.0
+            for dir in 1:dg.dim
+                for istate in 1:dg.Nstates
+                    @views delta -= flux[dir][indexb,istate]' * dg.refelem.Qh[dir] * v[indexb,istate]
+                end
+                @views delta += dot(dg.refelem.bh[dir], psi[dir])
+            end
+
+            if param.Rescorr == "Rescorrdissip"
+                delta = min(delta, 0)
+            elseif param.Rescorr == "NoRescorr"
+                delta = 0.0
+            elseif param.Rescorr != "RescorrEC"
+                error("Invalid residual correction setting!")
+            end
+
+            # Consistent local entropy correction (WE HAVEN'T DIVIDED BY JACOBIAN YET!)
+            Mv = dg.refelem.M * v[indexb, :]
+            oneMv = sum(Mv, dims = 1)
+
+            den = sum(v[indexb, :] .* Mv) - sum(oneMv.^2) / oneMone
+
+            if abs(den) < 2.5e-14 || abs(delta) < 2.5e-15
+                residual[indexb, :] .= 0.0
+            else
+                alpha = delta / den
+                residual[indexb, :] .= alpha .* (v[indexb, :] .- oneMv ./ oneMone)
+            end
+        end
+
+        # We then just proceed with usual strong DG
+        fluxface = Tuple(block_matmul(dg.refelem.chif, flux[dir], dg.mesh.Nel) for dir in 1:dg.dim)
+        numflux = compute_numflux(un, up, dg.nphys, param)
+        flux_to_ref!(numflux, dg.refelem.Nfnodes, dg)
+
+        # Assemble complete residual (volume and face)
+        for dir in 1:dg.dim
+            @views residual .= residual .- block_matmul(dg.refelem.Dh[dir], flux[dir], dg.mesh.Nel) .- block_matmul((dg.refelem.LIFT[dir]), numflux[dir] .- fluxface[dir], dg.mesh.Nel)
+        end
+
+        # Scale by Jacobian
+        for ielem = 1:dg.mesh.Nel
+            index = 1+dg.refelem.Nbnodes*(ielem-1):dg.refelem.Nbnodes*ielem
+            @views residual[index,:] .= residual[index,:] ./ dg.mesh.detJ[ielem]
+        end
+
+        # Add source (if applicable)
+        if !(isnothing(param.sourcename))
+            residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(dg, param, dg.qpts, t), dg.mesh.Nel)
+        end
+
+        return residual
+    end
 end
 
 function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGEntFilt, param::parameters)
