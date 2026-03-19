@@ -144,7 +144,6 @@ function make_interval(X::Vector, BCtags=[0, 0])
             else
                 connectivity[ielem,2] = [0, BCtags[2]]
             end
-            connectivity[ielem,1] = [ielem-1, 2]
         else
             connectivity[ielem,2] = [ielem+1, 1]
         end
