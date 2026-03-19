@@ -47,7 +47,7 @@ function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Union{Ab
         if param.numfluxtype == "central"
             return (0.25 .* (up.^2 .+ un.^2),)
         elseif param.numfluxtype == "LF"
-            return (0.25 .* ((un.^2 .+ up.^2) .- max.(abs.(up), abs.(un)) .* (up .- un) .* dg.nphys),)
+            return (0.25 .* ((un.^2 .+ up.^2) .- max.(abs.(up), abs.(un)) .* (up .- un) .* nphys),)
         elseif param.numfluxtype == "EC_split"
             return ((1/6) .* (un.^2 .+ up .* un .+ up.^2),)
         else
