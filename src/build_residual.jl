@@ -394,7 +394,7 @@ end
 # MUST USE PROJECTED ENTROPY VARIABLES AS INPUT
 function AV_auxiliary1(v::AbstractMatrix, vn::AbstractMatrix, vp::AbstractMatrix, dg::DGArtVisc)
     if dg.mesh isa LMesh
-        theta = Tuple(zeros(dg.DOF, dg.Nstates) for dir in 1:dg.dim)
+        theta = Tuple(zeros(eltype(v), dg.DOF, dg.Nstates) for dir in 1:dg.dim)
         vjump = (vp .- vn) # We use a penalty term as in (Chan, 2025)
 
         for dir1 in 1:dg.dim
@@ -419,7 +419,7 @@ end
 
 function AV_auxiliary2(sigma::Tuple, sigman::Tuple, sigmap::Tuple, dg::DGArtVisc)
     if dg.mesh isa LMesh
-        gvisc = zeros(dg.DOF, dg.Nstates)
+        gvisc = zeros(eltype(sigma[1]), dg.DOF, dg.Nstates)
         sigmanum = 0.5 .* (sigman .+ sigmap) # We use central viscous fluxes as in (Chan, 2025)
         flux_to_ref!(sigma, dg.refelem.Nbnodes, dg)
         flux_to_ref!(sigmanum, dg.refelem.Nfnodes, dg)
