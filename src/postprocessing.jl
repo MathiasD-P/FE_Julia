@@ -20,6 +20,14 @@ function compute_L2error(u, t, enodes::AbstractNodes, dg::DG, param::parameters)
                 end
             end
         
+        elseif param.pdetype == "Burgers"
+            if param.BCname == "periodic"
+                if param.ICname == "GassnerBurgers"
+                    c = 1.2
+                    error2 = (block_matmul(chie, u, dg.mesh.Nel) .- initialize_states(dg, param, epts .- c * t)).^2
+                end
+            end
+        
         elseif param.pdetype == "EulerPerfGas"
             if param.BCname == "periodic"
                 if param.ICname == "IsentropicDensityWave"

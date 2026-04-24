@@ -79,6 +79,14 @@ function initialize_states(dg::DG, param::parameters, pts = nothing)
 
         return u
     
+    elseif param.ICname == "GassnerBurgers" # BE VERY CAREFUL ABOUT MATCHING CONSTANTS
+        A = 2.0
+        av = 0.75
+        k = 2 * pi
+        u[:,1] .= A .* sin.(k .* pts) .+ av
+
+        return u
+    
     else
         error("Unknown IC name!")
     end
@@ -91,13 +99,23 @@ function compute_source(dg::DG, param::parameters, pts::Matrix{Float64}, time::F
         println("Verifiy the accuracy of source and manufactured solution in 2D. This has not been validated...")
     end
 
-    if param.sourcename == "GassnerEuler" # CAREFUL not exactly the same as in Gassner, corrected source and solution from CPerthick (should work for 1 and 2D)
+
+    if param.sourcename == "GassnerBurgers" # ONLY IN 1D
+        A = 2.0
+        av = 0.75
+        k = 2 * pi
+        c = 1.2
+        Q[:,1] .= (A * k) .* cos.(k .* (pts .- c * time)) .* (A .* sin.(k .* (pts .- c * time)) .- c .+ av)
+
+        return Q
+
+    elseif param.sourcename == "GassnerEuler" # CAREFUL not exactly the same as in Gassner, corrected source and solution from CPerthick (should work for 1 and 2D)
         Q[:,1] .= - 2 * pi * 0.1 * cos.(2*pi * (sum(pts, dims=2) .- 2*time))
         Q[:,2:end-1] .= 1/100 * 2 * pi .* cos.(2*pi .* (sum(pts, dims=2) .- 2*time)) .* (35 * param.gamma .- 45 .+ 2 .* (param.gamma - 1) .* sin.(2*pi .* (sum(pts, dims=2) .- 2*time)))
         Q[:,end] .= 1/100 * 2 * pi * cos.(2*pi * (sum(pts, dims=2) .- 2*time)) .* (-75 .+ 35 * param.gamma .+ 2 * (param.gamma - 2) .* sin.(2*pi .* (sum(pts, dims=2) .- 2*time)))
-    end
 
-    return Q
+        return Q
+    end
 end
 
 # consistent mesh and BCHandler initializations (must absolutely be updated together)
