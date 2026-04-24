@@ -1,6 +1,7 @@
 module FE_Julia
     using SparseArrays
     using LinearAlgebra
+    using ForwardDiff
     using Plots
 
     import FastGaussQuadrature
@@ -22,5 +23,6 @@ module FE_Julia
     include("build_residual.jl")
     include("ODE_solver.jl")
     include("postprocessing.jl")
+    include("jacobian_residual.jl")
     include("main.jl")
 end

@@ -2,7 +2,7 @@
 # Assemble residual for different DG flavours
 #####################################################################
 
-function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGStd, param::parameters)
+function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandler::Dict, dg::DGStd, param::parameters) where {T<:Real}
     # For a linear mesh, we can simplify the computation
     if dg.mesh isa LMesh
         # We compute the projected reference flux
@@ -40,7 +40,7 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
     end
 end
 
-function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGFluxDiff, param::parameters)
+function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandler::Dict, dg::DGFluxDiff, param::parameters) where {T<:Real}
     if dg.mesh isa LMesh
         # We start by computing the entropy-projected solution (volume and face)
         v = compute_evar(block_matmul(dg.refelem.chiq, u, dg.mesh.Nel), param) # Compute entropy variables at vol quadrature points
@@ -58,7 +58,7 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
 
         # Volume terms
         Npts = dg.refelem.Nfnodes*dg.refelem.Nfaces + dg.refelem.Nqnodes # number of 2-pt flux pts
-        F = Tuple(Array{Float64}(undef, Npts, Npts, dg.Nstates) for dir in 1:dg.dim)
+        F = Tuple(Array{eltype(u)}(undef, Npts, Npts, dg.Nstates) for dir in 1:dg.dim)
         @inbounds for dir in 1:param.dim # Allocate diagonals with zeros (don't need them since Hadamard prod with Skew-symmetric)
             for j in 1:Npts
                 F[dir][j,j,:] .= 0.0
@@ -103,7 +103,7 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
     end
 end
 
-function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGArtVisc, param::parameters, debug=false)
+function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandler::Dict, dg::DGArtVisc, param::parameters, debug=false) where {T<:Real}
     # If the user wants to know the values for the entropy deficit and artificial viscosity..
     if debug
         debug_data = Dict("delta" => Vector{Float64}(undef, dg.mesh.Nel), "visc" => Vector{Float64}(undef, dg.mesh.Nel), "den" => Vector{Float64}(undef, dg.mesh.Nel))
@@ -125,7 +125,7 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
 
         # We compute projected scaled entropy gradient
         thetaq = Tuple(block_matmul(dg.refelem.chiq, theta[dir], dg.mesh.Nel) for dir in 1:dg.dim)
-        thetaK = Tuple(Matrix{Float64}(undef, dg.mesh.Nel*dg.refelem.Nqnodes, dg.Nstates) for dir in 1:dg.dim)
+        thetaK = Tuple(Matrix{eltype(u)}(undef, dg.mesh.Nel*dg.refelem.Nqnodes, dg.Nstates) for dir in 1:dg.dim)
 
         for iqnode in 1:dg.mesh.Nel*dg.refelem.Nqnodes
             K = compute_cvar_Hessian(uq[iqnode,:], param)
@@ -141,7 +141,7 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
         flux = Tuple(block_matmul(dg.refelem.Ph, flux[dir], dg.mesh.Nel) for dir in 1:dg.dim)
 
         # Artificial viscosity
-        sigma = Tuple(Matrix{Float64}(undef, dg.DOF, dg.Nstates) for dir in 1:dg.dim)
+        sigma = Tuple(Matrix{eltype(u)}(undef, dg.DOF, dg.Nstates) for dir in 1:dg.dim)
         for ielem = 1:dg.mesh.Nel
             indexf = 1+dg.refelem.Nfnodes*dg.refelem.Nfaces*(ielem-1):dg.refelem.Nfnodes*dg.refelem.Nfaces*ielem
             indexb = 1+dg.refelem.Nbnodes*(ielem-1):dg.refelem.Nbnodes*ielem
@@ -217,7 +217,7 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
     end
 end
 
-function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGAddRes, param::parameters)
+function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandler::Dict, dg::DGAddRes, param::parameters) where {T<:Real}
     if dg.mesh isa LMesh
         # We start by computing the projected entropy variables and we evaluate face quantities
         uq = block_matmul(dg.refelem.chiq, u, dg.mesh.Nel)
@@ -298,7 +298,7 @@ function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float
     end
 end
 
-function build_residual!(residual::Matrix{Float64}, u::Matrix{Float64}, t::Float64, BChandler::Dict, dg::DGEntFilt, param::parameters)
+function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandler::Dict, dg::DGEntFilt, param::parameters) where {T<:Real}
 end
 
 #####################################################################
@@ -376,7 +376,7 @@ function grad_to_ref(u::AbstractArray, Nnodes::Integer, dir::Integer, dg::DG) # 
         return (u,)
     elseif dg.dim == 2
         if dg.mesh isa LMesh
-            f = (Matrix{Float64}(undef, Nnodes, dg.Nstates), Matrix{Float64}(undef, Nnodes, dg.Nstates))
+            f = (Matrix{eltype(u)}(undef, Nnodes, dg.Nstates), Matrix{eltype(u)}(undef, Nnodes, dg.Nstates))
             for ielem in 1:dg.mesh.Nel
                 index = 1+Nnodes*(ielem-1):dg.Nnodes*ielem
                 f[1][index,:] .= dg.mesh.CT[1,dir] .* u
@@ -394,7 +394,7 @@ end
 # MUST USE PROJECTED ENTROPY VARIABLES AS INPUT
 function AV_auxiliary1(v::AbstractMatrix, vn::AbstractMatrix, vp::AbstractMatrix, dg::DGArtVisc)
     if dg.mesh isa LMesh
-        theta = Tuple(zeros(dg.DOF, dg.Nstates) for dir in 1:dg.dim)
+        theta = Tuple(zeros(eltype(v), dg.DOF, dg.Nstates) for dir in 1:dg.dim)
         vjump = (vp .- vn) # We use a penalty term as in (Chan, 2025)
 
         for dir1 in 1:dg.dim
@@ -419,7 +419,7 @@ end
 
 function AV_auxiliary2(sigma::Tuple, sigman::Tuple, sigmap::Tuple, dg::DGArtVisc)
     if dg.mesh isa LMesh
-        gvisc = zeros(dg.DOF, dg.Nstates)
+        gvisc = zeros(eltype(sigma[1]), dg.DOF, dg.Nstates)
         sigmanum = 0.5 .* (sigman .+ sigmap) # We use central viscous fluxes as in (Chan, 2025)
         flux_to_ref!(sigma, dg.refelem.Nbnodes, dg)
         flux_to_ref!(sigmanum, dg.refelem.Nfnodes, dg)
