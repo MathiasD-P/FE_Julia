@@ -80,9 +80,9 @@ function initialize_states(dg::DG, param::parameters, pts = nothing)
         return u
     
     elseif param.ICname == "GassnerBurgers" # BE VERY CAREFUL ABOUT MATCHING CONSTANTS
-        A = 2.0
+        A = 5.0
         av = 0.75
-        k = 2 * pi
+        k = 4 * pi
         u[:,1] .= A .* sin.(k .* pts) .+ av
 
         return u
@@ -101,9 +101,9 @@ function compute_source(dg::DG, param::parameters, pts::Matrix{Float64}, time::F
 
 
     if param.sourcename == "GassnerBurgers" # ONLY IN 1D
-        A = 2.0
+        A = 5.0
         av = 0.75
-        k = 2 * pi
+        k = 4 * pi
         c = 1.2
         Q[:,1] .= (A * k) .* cos.(k .* (pts .- c * time)) .* (A .* sin.(k .* (pts .- c * time)) .- c .+ av)
 

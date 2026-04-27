@@ -30,6 +30,28 @@ function make_my_tests_parameters(testname::String)
                         OOAtest=true,
                         a=1.2)
 
+    elseif occursin(r"test_OOA_DGStd_Burgers_1D_p.*$", testname)
+        p = parse(Int, match(r"test_OOA_DGStd_Burgers_1D_p(.*)$", testname)[1])
+        param = parameters(
+                        pdetype="Burgers",
+                        dim=1,
+                        dgtype="DGStd",
+                        bnodes="("*string(p+1)*")-GL",
+                        qnodes="("*string(p+2)*")-GL",
+                        enodes="(10)-GL",
+                        fnodes="(1)-GL",
+                        refelem="interval",
+                        domain="unit_interval_linear",
+                        Neldim=2,
+                        numfluxtype="LF",
+                        ICname="GassnerBurgers",
+                        BCname="periodic",
+                        sourcename = "GassnerBurgers",
+                        ODE_solver="LSERK45",
+                        Nsteps=10000,
+                        dt=0.0001,
+                        OOAtest=true)
+
     elseif occursin(r"test_OOA_DGStd_Chand_Euler_1D_p.*$", testname)
         p = parse(Int, match(r"test_OOA_DGStd_Chand_Euler_1D_p(.*)$", testname)[1])
         param = parameters(
@@ -52,6 +74,29 @@ function make_my_tests_parameters(testname::String)
                         dt=0.0001,
                         OOAtest=true,
                         gamma=1.4)
+    
+    elseif occursin(r"test_OOA_DGFluxDiff_Burgers_1D_p.*$", testname)
+        p = parse(Int, match(r"test_OOA_DGFluxDiff_Burgers_1D_p(.*)$", testname)[1])
+        param = parameters(
+                        pdetype="Burgers",
+                        dim=1,
+                        dgtype="DGFluxDiff",
+                        bnodes="("*string(p+1)*")-GL",
+                        qnodes="("*string(p+2)*")-GL",
+                        enodes="(12)-GL",
+                        fnodes="(1)-GL",
+                        refelem="interval",
+                        domain="unit_interval_linear",
+                        Neldim=2,
+                        numfluxtype="LF",
+                        twoptfluxtype="EC_split",
+                        ICname="GassnerBurgers",
+                        BCname="periodic",
+                        sourcename = "GassnerBurgers",
+                        ODE_solver="LSERK45",
+                        Nsteps=10000,
+                        dt=0.0001,
+                        OOAtest=true)
 
     elseif occursin(r"test_OOA_DGFluxDiff_Chand_Euler_1D_p.*$", testname)
         p = parse(Int, match(r"test_OOA_DGFluxDiff_Chand_Euler_1D_p(.*)$", testname)[1])
@@ -76,6 +121,29 @@ function make_my_tests_parameters(testname::String)
                         dt=0.0001,
                         OOAtest=true,
                         gamma=1.4)
+    
+    elseif occursin(r"test_OOA_DGArtVisc_Burgers_1D_p.*$", testname)
+        p = parse(Int, match(r"test_OOA_DGArtVisc_Burgers_1D_p(.*)$", testname)[1])
+        param = parameters(
+                        pdetype="Burgers",
+                        dim=1,
+                        dgtype="DGArtVisc",
+                        bnodes="("*string(p+1)*")-GL",
+                        qnodes="("*string(p+2)*")-GL",
+                        enodes="(12)-GL",
+                        fnodes="(1)-GL",
+                        refelem="interval",
+                        domain="unit_interval_linear",
+                        Neldim=2,
+                        numfluxtype="LF",
+                        AVcoeff="AVEC",
+                        ICname="GassnerBurgers",
+                        BCname="periodic",
+                        sourcename = "GassnerBurgers",
+                        ODE_solver="LSERK45",
+                        Nsteps=10000,
+                        dt=0.0001,
+                        OOAtest=true)
 
     elseif occursin(r"test_OOA_DGArtVisc_Chand_Euler_1D_p.*$", testname)
         p = parse(Int, match(r"test_OOA_DGArtVisc_Chand_Euler_1D_p(.*)$", testname)[1])
@@ -95,6 +163,30 @@ function make_my_tests_parameters(testname::String)
                         ICname="GassnerEuler",
                         BCname="periodic",
                         sourcename = "GassnerEuler",
+                        ODE_solver="LSERK45",
+                        Nsteps=10000,
+                        dt=0.0001,
+                        OOAtest=true,
+                        gamma=1.4)
+    
+    elseif occursin(r"test_OOA_DGAddRes_Burgers_1D_p.*$", testname)
+        p = parse(Int, match(r"test_OOA_DGAddRes_Burgers_1D_p(.*)$", testname)[1])
+        param = parameters(
+                        pdetype="Burgers",
+                        dim=1,
+                        dgtype="DGAddRes",
+                        bnodes="("*string(p+1)*")-GL",
+                        qnodes="("*string(p+2)*")-GL",
+                        enodes="(12)-GL",
+                        fnodes="(1)-GL",
+                        refelem="interval",
+                        domain="unit_interval_linear",
+                        Neldim=2,
+                        numfluxtype="LF",
+                        Rescorr="RescorrEC",
+                        ICname="GassnerBurgers",
+                        BCname="periodic",
+                        sourcename = "GassnerBurgers",
                         ODE_solver="LSERK45",
                         Nsteps=10000,
                         dt=0.0001,
