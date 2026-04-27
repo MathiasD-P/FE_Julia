@@ -8,15 +8,15 @@
 using FE_Julia
 
 function make_my_tests_parameters(testname::String)
-    if occursin(r"test_OOA_DGStd_LinAdv_1D_p.*$", testname)
-        p = parse(Int, match(r"test_OOA_DGStd_LinAdv_1D_p(.*)$", testname)[1])
+    if occursin(r"test_OOA_DGStd_LinAdv_1D_.*$", testname)
+        nodeparse = match(r"test_OOA_DGStd_LinAdv_1D_b(.*)_q(.*)$", testname)
         param = parameters(
                         pdetype="LinAdv",
                         dim=1,
                         dgtype="DGStd",
-                        bnodes="("*string(p+1)*")-GL",
-                        qnodes="("*string(p+2)*")-GL",
-                        enodes="(10)-GL",
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
+                        enodes="(12)-GL",
                         fnodes="(1)-GL",
                         refelem="interval",
                         domain="unit_interval_linear",
@@ -30,15 +30,15 @@ function make_my_tests_parameters(testname::String)
                         OOAtest=true,
                         a=1.2)
 
-    elseif occursin(r"test_OOA_DGStd_Burgers_1D_p.*$", testname)
-        p = parse(Int, match(r"test_OOA_DGStd_Burgers_1D_p(.*)$", testname)[1])
+    elseif occursin(r"test_OOA_DGStd_Burgers_1D_.*$", testname)
+        nodeparse = match(r"test_OOA_DGStd_Burgers_1D_b(.*)_q(.*)$", testname)
         param = parameters(
                         pdetype="Burgers",
                         dim=1,
                         dgtype="DGStd",
-                        bnodes="("*string(p+1)*")-GL",
-                        qnodes="("*string(p+2)*")-GL",
-                        enodes="(10)-GL",
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
+                        enodes="(12)-GL",
                         fnodes="(1)-GL",
                         refelem="interval",
                         domain="unit_interval_linear",
@@ -52,15 +52,15 @@ function make_my_tests_parameters(testname::String)
                         dt=0.0001,
                         OOAtest=true)
 
-    elseif occursin(r"test_OOA_DGStd_Chand_Euler_1D_p.*$", testname)
-        p = parse(Int, match(r"test_OOA_DGStd_Chand_Euler_1D_p(.*)$", testname)[1])
+    elseif occursin(r"test_OOA_DGStd_Chand_Euler_1D_.*$", testname)
+        nodeparse = match(r"test_OOA_DGStd_Chand_Euler_1D_b(.*)_q(.*)$", testname)
         param = parameters(
                         pdetype="EulerPerfGas",
                         dim=1,
                         dgtype="DGStd",
-                        bnodes="("*string(p+1)*")-GL",
-                        qnodes="("*string(p+2)*")-GL",
-                        enodes="(10)-GL",
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
+                        enodes="(12)-GL",
                         fnodes="(1)-GL",
                         refelem="interval",
                         domain="unit_interval_linear",
@@ -75,14 +75,14 @@ function make_my_tests_parameters(testname::String)
                         OOAtest=true,
                         gamma=1.4)
     
-    elseif occursin(r"test_OOA_DGFluxDiff_Burgers_1D_p.*$", testname)
-        p = parse(Int, match(r"test_OOA_DGFluxDiff_Burgers_1D_p(.*)$", testname)[1])
+    elseif occursin(r"test_OOA_DGFluxDiff_Burgers_1D_.*$", testname)
+        nodeparse = match(r"test_OOA_DGFluxDiff_Burgers_1D_b(.*)_q(.*)$", testname)
         param = parameters(
                         pdetype="Burgers",
                         dim=1,
                         dgtype="DGFluxDiff",
-                        bnodes="("*string(p+1)*")-GL",
-                        qnodes="("*string(p+2)*")-GL",
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
                         enodes="(12)-GL",
                         fnodes="(1)-GL",
                         refelem="interval",
@@ -98,14 +98,14 @@ function make_my_tests_parameters(testname::String)
                         dt=0.0001,
                         OOAtest=true)
 
-    elseif occursin(r"test_OOA_DGFluxDiff_Chand_Euler_1D_p.*$", testname)
-        p = parse(Int, match(r"test_OOA_DGFluxDiff_Chand_Euler_1D_p(.*)$", testname)[1])
+    elseif occursin(r"test_OOA_DGFluxDiff_Chand_Euler_1D_.*$", testname)
+        nodeparse = match(r"test_OOA_DGFluxDiff_Chand_Euler_1D_b(.*)_q(.*)$", testname)
         param = parameters(
                         pdetype="EulerPerfGas",
                         dim=1,
                         dgtype="DGFluxDiff",
-                        bnodes="("*string(p+1)*")-GL",
-                        qnodes="("*string(p+2)*")-GL",
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
                         enodes="(12)-GL",
                         fnodes="(1)-GL",
                         refelem="interval",
@@ -122,14 +122,14 @@ function make_my_tests_parameters(testname::String)
                         OOAtest=true,
                         gamma=1.4)
     
-    elseif occursin(r"test_OOA_DGArtVisc_Burgers_1D_p.*$", testname)
-        p = parse(Int, match(r"test_OOA_DGArtVisc_Burgers_1D_p(.*)$", testname)[1])
+    elseif occursin(r"test_OOA_DGArtVisc_Burgers_1D_.*$", testname)
+        nodeparse = match(r"test_OOA_DGArtVisc_Burgers_1D_b(.*)_q(.*)$", testname)
         param = parameters(
                         pdetype="Burgers",
                         dim=1,
                         dgtype="DGArtVisc",
-                        bnodes="("*string(p+1)*")-GL",
-                        qnodes="("*string(p+2)*")-GL",
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
                         enodes="(12)-GL",
                         fnodes="(1)-GL",
                         refelem="interval",
@@ -145,14 +145,14 @@ function make_my_tests_parameters(testname::String)
                         dt=0.0001,
                         OOAtest=true)
 
-    elseif occursin(r"test_OOA_DGArtVisc_Chand_Euler_1D_p.*$", testname)
-        p = parse(Int, match(r"test_OOA_DGArtVisc_Chand_Euler_1D_p(.*)$", testname)[1])
+    elseif occursin(r"test_OOA_DGArtVisc_Chand_Euler_1D_.*$", testname)
+        nodeparse = match(r"test_OOA_DGArtVisc_Chand_Euler_1D_b(.*)_q(.*)$", testname)
         param = parameters(
                         pdetype="EulerPerfGas",
                         dim=1,
                         dgtype="DGArtVisc",
-                        bnodes="("*string(p+1)*")-GL",
-                        qnodes="("*string(p+2)*")-GL",
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
                         enodes="(12)-GL",
                         fnodes="(1)-GL",
                         refelem="interval",
@@ -169,14 +169,14 @@ function make_my_tests_parameters(testname::String)
                         OOAtest=true,
                         gamma=1.4)
     
-    elseif occursin(r"test_OOA_DGAddRes_Burgers_1D_p.*$", testname)
-        p = parse(Int, match(r"test_OOA_DGAddRes_Burgers_1D_p(.*)$", testname)[1])
+    elseif occursin(r"test_OOA_DGAddRes_Burgers_1D_.*$", testname)
+        nodeparse = match(r"test_OOA_DGAddRes_Burgers_1D_b(.*)_q(.*)$", testname)
         param = parameters(
                         pdetype="Burgers",
                         dim=1,
                         dgtype="DGAddRes",
-                        bnodes="("*string(p+1)*")-GL",
-                        qnodes="("*string(p+2)*")-GL",
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
                         enodes="(12)-GL",
                         fnodes="(1)-GL",
                         refelem="interval",
@@ -193,14 +193,14 @@ function make_my_tests_parameters(testname::String)
                         OOAtest=true,
                         gamma=1.4)
     
-    elseif occursin(r"test_OOA_DGAddRes_Chand_Euler_1D_p.*$", testname)
-        p = parse(Int, match(r"test_OOA_DGAddRes_Chand_Euler_1D_p(.*)$", testname)[1])
+    elseif occursin(r"test_OOA_DGAddRes_Chand_Euler_1D_.*$", testname)
+        nodeparse = match(r"test_OOA_DGAddRes_Chand_Euler_1D_b(.*)_q(.*)$", testname)
         param = parameters(
                         pdetype="EulerPerfGas",
                         dim=1,
                         dgtype="DGAddRes",
-                        bnodes="("*string(p+1)*")-GL",
-                        qnodes="("*string(p+2)*")-GL",
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
                         enodes="(12)-GL",
                         fnodes="(1)-GL",
                         refelem="interval",
@@ -217,14 +217,14 @@ function make_my_tests_parameters(testname::String)
                         OOAtest=true,
                         gamma=1.4)
     
-    elseif occursin(r"test_ent_DGStd_Chand_Euler_1D_p.*$", testname)
-        p = parse(Int, match(r"test_ent_DGStd_Chand_Euler_1D_p(.*)$", testname)[1])
+    elseif occursin(r"test_ent_DGStd_Chand_Euler_1D_.*$", testname)
+        nodeparse = match(r"test_ent_DGStd_Chand_Euler_1D_b(.*)_q(.*)$", testname)
         param = parameters(
                         pdetype="EulerPerfGas",
                         dim=1,
                         dgtype="DGStd",
-                        bnodes="("*string(p+1)*")-GL",
-                        qnodes="("*string(p+2)*")-GL",
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
                         fnodes="(1)-GL",
                         refelem="interval",
                         domain="unit_interval_linear",
@@ -238,14 +238,14 @@ function make_my_tests_parameters(testname::String)
                         calc_entropy=true,
                         gamma=1.4)
                     
-    elseif occursin(r"test_ent_DGFluxDiff_Chand_Euler_1D_p.*$", testname)
-        p = parse(Int, match(r"test_ent_DGFluxDiff_Chand_Euler_1D_p(.*)$", testname)[1])
+    elseif occursin(r"test_ent_DGFluxDiff_Chand_Euler_1D_.*$", testname)
+        nodeparse = match(r"test_ent_DGFluxDiff_Chand_Euler_1D_b(.*)_q(.*)$", testname)
         param = parameters(
                         pdetype="EulerPerfGas",
                         dim=1,
                         dgtype="DGFluxDiff",
-                        bnodes="("*string(p+1)*")-GL",
-                        qnodes="("*string(p+2)*")-GL",
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
                         fnodes="(1)-GL",
                         refelem="interval",
                         domain="unit_interval_linear",
@@ -260,14 +260,14 @@ function make_my_tests_parameters(testname::String)
                         calc_entropy=true,
                         gamma=1.4)
 
-    elseif occursin(r"test_ent_DGFluxDiff_Burgers_1D_p.*$", testname)
-        p = parse(Int, match(r"test_ent_DGFluxDiff_Burgers_1D_p(.*)$", testname)[1])
+    elseif occursin(r"test_ent_DGFluxDiff_Burgers_1D_.*$", testname)
+        nodeparse = match(r"test_ent_DGFluxDiff_Burgers_1D_b(.*)_q(.*)$", testname)
         param = parameters(
                         pdetype="Burgers",
                         dim=1,
                         dgtype="DGFluxDiff",
-                        bnodes="("*string(p+1)*")-GL",
-                        qnodes="("*string(p+2)*")-GL",
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
                         fnodes="(1)-GL",
                         refelem="interval",
                         domain="unit_interval_linear",
@@ -281,14 +281,14 @@ function make_my_tests_parameters(testname::String)
                         dt=0.00002,
                         calc_entropy=true)
     
-    elseif occursin(r"test_ent_DGArtVisc_Chand_Euler_1D_p.*$", testname)
-        p = parse(Int, match(r"test_ent_DGArtVisc_Chand_Euler_1D_p(.*)$", testname)[1])
+    elseif occursin(r"test_ent_DGArtVisc_Chand_Euler_1D_.*$", testname)
+        nodeparse = match(r"test_ent_DGArtVisc_Chand_Euler_1D_b(.*)_q(.*)$", testname)
         param = parameters(
                         pdetype="EulerPerfGas",
                         dim=1,
                         dgtype="DGArtVisc",
-                        bnodes="("*string(p+1)*")-GL",
-                        qnodes="("*string(p+1)*")-GL",
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
                         fnodes="(1)-GL",
                         refelem="interval",
                         domain="unit_interval_linear",
@@ -303,14 +303,14 @@ function make_my_tests_parameters(testname::String)
                         calc_entropy=true,
                         gamma=1.4)
     
-    elseif occursin(r"test_ent_DGArtVisc_Burgers_1D_p.*$", testname)
-        p = parse(Int, match(r"test_ent_DGArtVisc_Burgers_1D_p(.*)$", testname)[1])
+    elseif occursin(r"test_ent_DGArtVisc_Burgers_1D_.*$", testname)
+        nodeparse = match(r"test_ent_DGArtVisc_Burgers_1D_b(.*)_q(.*)$", testname)
         param = parameters(
                         pdetype="Burgers",
                         dim=1,
                         dgtype="DGArtVisc",
-                        bnodes="("*string(p+1)*")-GL",
-                        qnodes="("*string(p+1)*")-GL",
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
                         fnodes="(1)-GL",
                         refelem="interval",
                         domain="unit_interval_linear",
@@ -324,14 +324,14 @@ function make_my_tests_parameters(testname::String)
                         dt=0.00002,
                         calc_entropy=true)
     
-    elseif occursin(r"test_ent_DGAddRes_Chand_Euler_1D_p.*$", testname)
-        p = parse(Int, match(r"test_ent_DGAddRes_Chand_Euler_1D_p(.*)$", testname)[1])
+    elseif occursin(r"test_ent_DGAddRes_Chand_Euler_1D_.*$", testname)
+        nodeparse = match(r"test_ent_DGAddRes_Chand_Euler_1D_b(.*)_q(.*)$", testname)
         param = parameters(
                         pdetype="EulerPerfGas",
                         dim=1,
                         dgtype="DGAddRes",
-                        bnodes="("*string(p+1)*")-GL",
-                        qnodes="("*string(p+2)*")-GL",
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
                         fnodes="(1)-GL",
                         refelem="interval",
                         domain="unit_interval_linear",
@@ -346,14 +346,14 @@ function make_my_tests_parameters(testname::String)
                         calc_entropy=true,
                         gamma=1.4)
     
-    elseif occursin(r"test_ent_DGAddRes_Burgers_1D_p.*$", testname)
-        p = parse(Int, match(r"test_ent_DGAddRes_Burgers_1D_p(.*)$", testname)[1])
+    elseif occursin(r"test_ent_DGAddRes_Burgers_1D_.*$", testname)
+        nodeparse = match(r"test_ent_DGAddRes_Burgers_1D_b(.*)_q(.*)$", testname)
         param = parameters(
                         pdetype="Burgers",
                         dim=1,
                         dgtype="DGAddRes",
-                        bnodes="("*string(p+1)*")-GL",
-                        qnodes="("*string(p+2)*")-GL",
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
                         fnodes="(1)-GL",
                         refelem="interval",
                         domain="unit_interval_linear",
@@ -367,15 +367,15 @@ function make_my_tests_parameters(testname::String)
                         dt=0.00002,
                         calc_entropy=true)
     
-    elseif occursin(r"test_visc_DGArtVisc_Chand_Euler_1D_p.*$", testname)
-        p = parse(Int, match(r"test_visc_DGArtVisc_Chand_Euler_1D_p(.*)$", testname)[1])
+    elseif occursin(r"test_visc_DGArtVisc_Chand_Euler_1D_.*$", testname)
+        nodeparse = match(r"test_visc_DGArtVisc_Chand_Euler_1D_b(.*)_q(.*)$", testname)
         param = parameters(
                         pdetype="EulerPerfGas",
                         dim=1,
                         dgtype="DGArtVisc",
-                        bnodes="("*string(p+1)*")-GL",
-                        qnodes="("*string(p+1)*")-GL",
-                        enodes="(15)-GL", # WE USE THESE NODES FOR L2 PROJ OF ICS
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
+                        enodes="(12)-GL", # WE USE THESE NODES FOR L2 PROJ OF ICS
                         fnodes="(1)-GL",
                         refelem="interval",
                         domain="unit_interval_linear",
