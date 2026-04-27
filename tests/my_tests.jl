@@ -50,7 +50,7 @@ function test_OOA(param, Nrefinements; filename=nothing)
         end
     end
 
-    return error[end,3]
+    return error
 end
 
 function test_entropy(param; filename=nothing)
