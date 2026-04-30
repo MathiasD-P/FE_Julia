@@ -41,16 +41,12 @@
 
 # end
 
-function set_up_and_solve(param::parameters)
+function set_up_problem(param::parameters)
     # initialize mesh and nodes
     mesh = initialize_mesh(param)
     bnodes = make_nodes(param.bnodes)
     qnodes = make_nodes(param.qnodes)
     fnodes = make_nodes(param.refelem, param.fnodes)
-
-    if isnothing(param.enodes) == false
-        enodes = make_nodes(param.enodes)
-    end
 
     # initialize ref element and DG object
     if param.pdetype == "LinAdv"
@@ -80,6 +76,18 @@ function set_up_and_solve(param::parameters)
     # Initialize state and BCs
     u0 = initialize_states(dg, param)
     BChandler = initialize_BCHandler(dg, param)
+
+    return u0, BChandler, dg
+end
+
+function set_up_and_solve(param::parameters)
+    # setup problem
+    u0, BChandler, dg = set_up_problem(param)
+
+    # create error nodes if we need them
+    if isnothing(param.enodes) == false
+        enodes = make_nodes(param.enodes)
+    end
 
     # Now, we solve
     output = ODE_solver(u0, BChandler, dg, param) # dictionary containing solution, final time and the time-history of all requested scalar observables
