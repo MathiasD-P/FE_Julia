@@ -7,7 +7,7 @@
 
 using FE_Julia
 
-function make_my_tests_parameters(testname::String)
+function make_validation_tests_parameters(testname::String)
     if occursin(r"test_OOA_DGStd_LinAdv_1D_.*$", testname)
         nodeparse = match(r"test_OOA_DGStd_LinAdv_1D_b(.*)_q(.*)$", testname)
         param = parameters(
