@@ -7,10 +7,12 @@ module FE_Julia
     import FastGaussQuadrature
     
     export parameters
+    export make_nodes
     export RefElemStd, RefElemSBP
     export DGStd, DGFluxDiff, DGArtVisc, DGAddRes, DGEntFilt
+    export build_residual!
     export ODE_solver
-    export set_up_and_solve
+    export set_up_and_solve, set_up_problem
 
     include("mesh.jl")
     include("basis.jl")
