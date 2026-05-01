@@ -95,15 +95,15 @@ bnodes = "(4)-GLL"
 qnodes = "(4)-GLL"
 DGnames = ["DGFluxDiff", "DGArtVisc", "DGAddRes"]
 colors = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2"] # colors used for plotting
-Nrefinements = 15
+Nrefinements = 14
 
 reserrors = research_test(bnodes, qnodes, DGnames, colors, Nrefinements);
 
-#%% Collocated GLL
+#%% Collocated GL
 bnodes = "(4)-GLL"
-qnodes = "(4)-GL"
+qnodes = "(5)-GL"
 DGnames = ["DGFluxDiff", "DGArtVisc", "DGAddRes"]
 colors = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2"] # colors used for plotting
-Nrefinements = 10
+Nrefinements = 11
 
 reserrors = research_test(bnodes, qnodes, DGnames, colors, Nrefinements);
