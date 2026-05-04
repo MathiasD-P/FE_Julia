@@ -2,6 +2,15 @@ using FE_Julia
 using LinearAlgebra
 using Plots
 
+# Default plotting parameters
+default(
+    fontfamily = "Computer Modern",
+    titlefont = font(12, "Computer Modern"),
+    guidefont = font(10, "Computer Modern"),
+    tickfont = font(8, "Computer Modern"),
+    legendfont = font(8, "Computer Modern")
+)
+
 function make_parameters(bnodes, qnodes)
     params = parameters(
                         pdetype="EulerPerfGas",
@@ -63,6 +72,10 @@ function research_test(bnodes, qnodes, DGnames, colors, Nrefinements)
 
             reserrors[mydg][i,2] = L2norm(residual .- stdresidual, chie, we, dg)
             reserrors[mydg][i,1] = dg.DOF
+
+            if reserrors[mydg][i,2] == 0
+                reserrors[mydg][i,2] = 1e-16 # for loglog plot
+            end
         end
 
         params.Neldim = round(params.Neldim * 1.5)
@@ -74,7 +87,12 @@ function research_test(bnodes, qnodes, DGnames, colors, Nrefinements)
     end
 
     # Now, we can plot the convergence of the residuals
-    plt = plot(title= "PDE: " * params.pdetype * "; Basis: " * bnodes * "; Quad: " * qnodes, xlabel="log10(DOF)", ylabel="log10(L2)")
+    plt = plot(xscale = :log10,
+               yscale = :log10,
+               title= "PDE: " * params.pdetype * "; Basis: " * bnodes * "; Quad: " * qnodes,
+               xlabel="DOF",
+               ylabel="L2 ECorr")
+
     for (colori, myDG) in enumerate(DGnames)
         if myDG == "DGArtVisc"
             mylabel = myDG * " (" * params.AVcoeff * ")"
@@ -83,7 +101,7 @@ function research_test(bnodes, qnodes, DGnames, colors, Nrefinements)
         else
             mylabel = myDG
         end
-        scatter!(plt, log10.(reserrors[myDG][:,1]), log10.(reserrors[myDG][:,2]), color=colors[colori], label=mylabel)
+        scatter!(plt, reserrors[myDG][:,1], reserrors[myDG][:,2], color=colors[colori], label=mylabel)
 
         println(myDG)
         display(reserrors[myDG])

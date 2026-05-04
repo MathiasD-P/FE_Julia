@@ -2,6 +2,15 @@ using FE_Julia
 using LinearAlgebra
 using Plots
 
+# Default plotting parameters
+default(
+    fontfamily="Computer Modern",
+    titlefont = font(12, "Computer Modern"),
+    guidefont = font(10, "Computer Modern"),
+    tickfont = font(8, "Computer Modern"),
+    legendfont = font(8, "Computer Modern")
+)
+
 function make_parameters(bnodes, qnodes)
     params = parameters(
                         pdetype="Burgers",
@@ -71,7 +80,12 @@ function research_test(bnodes, qnodes, DGnames, colors, Nrefinements)
     end
 
     # Now, we can plot the convergence of the residuals
-    plt = plot(title= "PDE: " * params.pdetype * "; Basis: " * bnodes * "; Quad: " * qnodes, xlabel="log10(DOF)", ylabel="log10(L2)")
+    plt = plot(xscale = :log10,
+               yscale = :log10,
+               title= "PDE: " * params.pdetype * "; Basis: " * bnodes * "; Quad: " * qnodes,
+               xlabel="DOF",
+               ylabel="L2 ECorr")
+
     for (colori, myDG) in enumerate(DGnames)
         if myDG == "DGArtVisc"
             mylabel = myDG * " (" * params.AVcoeff * ")"
@@ -80,7 +94,7 @@ function research_test(bnodes, qnodes, DGnames, colors, Nrefinements)
         else
             mylabel = myDG
         end
-        scatter!(plt, log10.(reserrors[myDG][:,1]), log10.(reserrors[myDG][:,2]), color=colors[colori], label=mylabel)
+        scatter!(plt, reserrors[myDG][:,1], reserrors[myDG][:,2], color=colors[colori], label=mylabel)
 
         println(myDG)
         display(reserrors[myDG])
@@ -94,16 +108,16 @@ end
 bnodes = "(4)-GLL"
 qnodes = "(4)-GLL"
 DGnames = ["DGFluxDiff", "DGArtVisc", "DGAddRes"]
-colors = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2"] # colors used for plotting
+colors = ["#E69F00", "#56B4E9", "#009E73"] # colors used for plotting
 Nrefinements = 14
 
 reserrors = research_test(bnodes, qnodes, DGnames, colors, Nrefinements);
 
-#%% Collocated GL
+# %% Collocated GL
 bnodes = "(4)-GLL"
-qnodes = "(5)-GL"
+qnodes = "(4)-GL"
 DGnames = ["DGFluxDiff", "DGArtVisc", "DGAddRes"]
-colors = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2"] # colors used for plotting
+colors = ["#E69F00", "#56B4E9", "#009E73"] # colors used for plotting
 Nrefinements = 11
 
 reserrors = research_test(bnodes, qnodes, DGnames, colors, Nrefinements);
