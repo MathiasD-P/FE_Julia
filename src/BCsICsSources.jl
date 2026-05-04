@@ -73,7 +73,10 @@ function initialize_states(dg::DG, param::parameters, pts = nothing)
         error("Source and manufactured initial conditions must match!")
     
     elseif param.ICname == "GassnerEuler"
-        u[:,1] .= 2 .+ 0.1 .* sin.(2*pi .* sum(pts, dims=2))
+        A = 0.1
+        av = 2.0
+        k = 2 * pi
+        u[:,1] .= av .+ A .* sin.(k .* sum(pts, dims=2))
         @views u[:,2] .= u[:,1]
         @views u[:,3] .= u[:,1].^2
 
@@ -110,9 +113,13 @@ function compute_source(dg::DG, param::parameters, pts::Matrix{Float64}, time::F
         return Q
 
     elseif param.sourcename == "GassnerEuler" # CAREFUL not exactly the same as in Gassner, corrected source and solution from CPerthick (should work for 1 and 2D)
-        Q[:,1] .= - 2 * pi * 0.1 * cos.(2*pi * (sum(pts, dims=2) .- 2*time))
-        Q[:,2:end-1] .= 1/100 * 2 * pi .* cos.(2*pi .* (sum(pts, dims=2) .- 2*time)) .* (35 * param.gamma .- 45 .+ 2 .* (param.gamma - 1) .* sin.(2*pi .* (sum(pts, dims=2) .- 2*time)))
-        Q[:,end] .= 1/100 * 2 * pi * cos.(2*pi * (sum(pts, dims=2) .- 2*time)) .* (-75 .+ 35 * param.gamma .+ 2 * (param.gamma - 2) .* sin.(2*pi .* (sum(pts, dims=2) .- 2*time)))
+        A = 0.1
+        av = 2.0
+        k = 2 * pi
+        c = 2.0
+        Q[:,1] .=  A*k*(1.0-c) .* cos.(k * (sum(pts, dims=2) .- c*time))
+        Q[:,2:end-1] .= A*k .* cos.(k .* (sum(pts, dims=2) .- c*time)) .* (2.0*av*(param.gamma-1.0)-0.5*(param.gamma-3.0)-c .+ 2.0*A*(param.gamma-1.0) .* sin.(k .* (sum(pts, dims=2) .- c*time)))
+        Q[:,end] .= A*k .* cos.(k .* (sum(pts, dims=2) .- c*time)) .* (2.0*av*(param.gamma-c)-0.5*(param.gamma-1.0) .+ 2.0*A*(param.gamma-c) .* sin.(k .* (sum(pts, dims=2) .- c*time)))
 
         return Q
     end
