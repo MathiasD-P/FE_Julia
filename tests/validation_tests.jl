@@ -8,10 +8,17 @@ function test_OOA(param, Nrefinements; filename=nothing)
 
     error = zeros((Nrefinements,3))
     tab_title = ["DOF" "L2 Error" "OOA"]
+    output = Dict()
 
     for i in 1:Nrefinements
-        output = set_up_and_solve(param)
-        error[i,1:2] = [output["dg"].DOF, output["L2error"]]
+        try
+            output = set_up_and_solve(param)
+            error[i,1:2] = [output["dg"].DOF, output["L2error"]]
+        catch e
+            error[i,1:2] = [NaN, NaN]
+            println("careful! Testcase crached.")
+            println(e)
+        end
 
         param.Neldim = param.Neldim * 2 #refine mesh
 
