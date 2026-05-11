@@ -2,7 +2,7 @@
 
 julia_version = "1.12.4"
 manifest_format = "2.0"
-project_hash = "7bd359565351436e9343d89ee9757f04331ab826"
+project_hash = "96225eb460a7db2f280f63e4a2816c02c565e11b"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -215,7 +215,7 @@ uuid = "2e619515-83b5-522b-bb60-26c02a35a201"
 version = "2.7.3+0"
 
 [[deps.FE_Julia]]
-deps = ["CSV", "FFTW", "FastGaussQuadrature", "ForwardDiff", "LinearAlgebra", "Plots", "Random", "SparseArrays"]
+deps = ["CSV", "FFTW", "FINUFFT", "FastGaussQuadrature", "ForwardDiff", "LinearAlgebra", "Plots", "Random", "SparseArrays"]
 path = "."
 uuid = "33777599-7456-4e34-b76a-766ca612bcbb"
 version = "0.1.0"
