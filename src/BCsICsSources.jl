@@ -1,6 +1,9 @@
 function initialize_states(dg::DG, param::parameters, pts = nothing)
+    flag_bpts = false
+
     if isnothing(pts)
         pts = dg.bpts
+        flag_bpts = true
     end
 
     u = zeros((size(pts,1), dg.Nstates))
@@ -67,6 +70,21 @@ function initialize_states(dg::DG, param::parameters, pts = nothing)
         u[pts .< 0,3] .= 0.1 / (param.gamma-1)
 
         return u
+    
+    elseif param.ICname == "Burgulence"
+        if !flag_bpts
+            error("Can only initialize Burgulence at basis nodes!")
+        end
+
+        if (param.domain != "unit_interval_linear") || (param.BCname != "periodic")
+            error("Burgulence can only be initialized on the unit circle!")
+        end
+
+        bnodes = make_nodes(param.bnodes)
+        Burg = Burgulence(bnodes, param.Neldim, param.kmax)
+
+        return Burg.IC
+
     
     # MANUFACTURED SOLUTIONS
     elseif param.ICname != param.sourcename

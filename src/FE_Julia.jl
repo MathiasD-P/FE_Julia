@@ -2,6 +2,9 @@ module FE_Julia
     using SparseArrays
     using LinearAlgebra
     using ForwardDiff
+    using FFTW
+    using FINUFFT
+    using Random
     using Plots
 
     import FastGaussQuadrature
@@ -26,5 +29,6 @@ module FE_Julia
     include("ODE_solver.jl")
     include("postprocessing.jl")
     include("jacobian_residual.jl")
+    include("Burgulence.jl")
     include("main.jl")
 end
