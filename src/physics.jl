@@ -48,6 +48,14 @@ function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Union{Ab
             return (0.25 .* (up.^2 .+ un.^2),)
         elseif param.numfluxtype == "LF"
             return (0.25 .* ((un.^2 .+ up.^2) .- max.(abs.(up), abs.(un)) .* (up .- un) .* nphys),)
+        elseif param.numfluxtype == "upwind"
+            f = similar(up)
+            vel = 0.5 .* (un.^2 .- up.^2) ./ (un .- up) # local velocity
+            slicing = vel .* nphys .>= 0
+            notslicing = .!slicing
+            f[slicing] .= 0.5 .* un[slicing].^2
+            f[notslicing] .= 0.5 .* up[notslicing].^2
+            return (f,)
         elseif param.numfluxtype == "EC_split"
             return ((1/6) .* (un.^2 .+ up .* un .+ up.^2),)
         else
