@@ -220,7 +220,12 @@ function AV_coeff(delta, den, param)
         println("Careful, visc denominator < 1e-12!")
     end
 
-    return a * den / (tol + den^2)
+    if isnothing(param.addviscosity)
+        return a * den / (tol + den^2)
+    else
+        return a * den / (tol + den^2) + param.addviscosity
+    end
+
 end
 
 #####################################################################

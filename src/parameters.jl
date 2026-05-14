@@ -40,6 +40,7 @@ mutable struct parameters
     # And all other physical constants for the problem...
     gamma # specific heat ratio for Euler
     a # advection speed for lin advection
+    addviscosity # viscosity offset for artificial viscosity
     kmax # wavenumber cutoff for Burgulence
 
     function parameters(;
@@ -69,9 +70,10 @@ mutable struct parameters
                      Nrefinements=nothing,
                      gamma=nothing,
                      a=nothing,
+                     addviscosity=nothing,
                      kmax=nothing)
 
-                     new(pdetype, dim, dgtype, bnodes, qnodes, fnodes, enodes, refelem, domain, Neldim, numfluxtype, twoptfluxtype, ICname, BCname, sourcename, ODE_solver, Nsteps, dt, AVcoeff, Rescorr, save, calc_entropy, OOAtest, Nrefinements, gamma,a,kmax)
+                     new(pdetype, dim, dgtype, bnodes, qnodes, fnodes, enodes, refelem, domain, Neldim, numfluxtype, twoptfluxtype, ICname, BCname, sourcename, ODE_solver, Nsteps, dt, AVcoeff, Rescorr, save, calc_entropy, OOAtest, Nrefinements, gamma,a,addviscosity,kmax)
     end
 end
 
