@@ -26,6 +26,16 @@ function initialize_states(dg::DG, param::parameters, pts = nothing)
 
         return u
     
+    elseif param.ICname == "rarefaction_1state"
+        if param.dim != 1
+            error("IC only works in 1D!")
+        end
+
+        u = ones(size(pts))
+        u[pts .<= 0.5] .= -1.0
+
+        return u
+        
     elseif param.ICname == "IsentropicDensityWave" # Classical test case used by (Chan 2025)
         A = 0.5 # tunable wave amplitude
         u[:,1] .= 1 .+ A .* sin.(2*pi.*sum(pts, dims=2))
