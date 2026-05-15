@@ -101,8 +101,8 @@ function initialize_states(dg::DG, param::parameters, pts = nothing)
         return u
     
     elseif param.ICname == "GassnerBurgers" # BE VERY CAREFUL ABOUT MATCHING CONSTANTS
-        A = 5.0
-        av = 0.75
+        A = 10.0
+        av = 10.0
         k = 4 * pi
         u[:,1] .= A .* sin.(k .* pts) .+ av
 
@@ -122,10 +122,10 @@ function compute_source(dg::DG, param::parameters, pts::Matrix{Float64}, time::F
 
 
     if param.sourcename == "GassnerBurgers" # ONLY IN 1D
-        A = 5.0
-        av = 0.75
+        A = 10.0
+        av = 10.0
         k = 4 * pi
-        c = 1.2
+        c = 2.2
         Q[:,1] .= (A * k) .* cos.(k .* (pts .- c * time)) .* (A .* sin.(k .* (pts .- c * time)) .- c .+ av)
 
         return Q
@@ -133,7 +133,7 @@ function compute_source(dg::DG, param::parameters, pts::Matrix{Float64}, time::F
     elseif param.sourcename == "GassnerEuler" # CAREFUL not exactly the same as in Gassner, corrected source and solution from CPerthick (should work for 1 and 2D)
         A = 0.1
         av = 2.0
-        k = 2 * pi
+        k = 4 * pi
         c = 2.0
         Q[:,1] .=  A*k*(1.0-c) .* cos.(k * (sum(pts, dims=2) .- c*time))
         Q[:,2:end-1] .= A*k .* cos.(k .* (sum(pts, dims=2) .- c*time)) .* (2.0*av*(param.gamma-1.0)-0.5*(param.gamma-3.0)-c .+ 2.0*A*(param.gamma-1.0) .* sin.(k .* (sum(pts, dims=2) .- c*time)))
