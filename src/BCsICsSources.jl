@@ -32,7 +32,7 @@ function initialize_states(dg::DG, param::parameters, pts = nothing)
         end
 
         u = ones(size(pts))
-        u[pts .<= 0.5] .= -1.0
+        u[pts .<= 0.0] .= -1.0
 
         return u
         
@@ -168,7 +168,7 @@ function initialize_mesh(param::parameters)
             return make_interval(collect(range(-0.5, 0.5, param.Neldim+1)), [0, 0])
         elseif param.BCname == "homogeneous_Dirichlet"
             return make_interval(collect(range(-0.5, 0.5, param.Neldim+1)), [-1, -1])
-        elseif param.BCname == "SodShockTube"
+        else
             return make_interval(collect(range(-0.5, 0.5, param.Neldim+1)), [-1, -2])
         end
     end
@@ -180,6 +180,9 @@ function initialize_BCHandler(dg::DG, param::parameters)
 
     elseif param.BCname == "homogeneous_Dirichlet"
         return Dict(-1 => zeros((dg.Nstates,)))
+    
+    elseif param.BCname == "unit_rarefaction"
+        return Dict(-1 => -ones((dg.Nstates,)), -2 => ones((dg.Nstates,)))
 
     elseif param.BCname == "SodShockTube"
         return Dict(-1 => [1.0, 0.0, 1.0 / (param.gamma-1)], -2 => [0.125, 0.0, 0.1 / (param.gamma-1)])
