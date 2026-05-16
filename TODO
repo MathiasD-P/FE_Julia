@@ -7,3 +7,4 @@ Not urgent / Future optimizations
 - Add dg_initialize in main to avoid code duplication, will clean-up test_viscosity()
 - Use L2 projection from quadrature nodes for initialization instead of collocation proj on the basis nodes
 - Compute entropy at time zero when calc_entropy is activated (right now, it is only computed at t = \Delta t)
+- Modify video_maker for non-autonomous systems
