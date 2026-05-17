@@ -48,8 +48,8 @@ function make_validation_tests_parameters(testname::String)
                         BCname="periodic",
                         sourcename = "GassnerBurgers",
                         ODE_solver="LSERK45",
-                        Nsteps=10000,
-                        dt=0.0001,
+                        Nsteps=20000,
+                        dt=0.00005,
                         OOAtest=true)
 
     elseif occursin(r"test_OOA_DGStd_Chand_Euler_1D_.*$", testname)
@@ -94,8 +94,8 @@ function make_validation_tests_parameters(testname::String)
                         BCname="periodic",
                         sourcename = "GassnerBurgers",
                         ODE_solver="LSERK45",
-                        Nsteps=10000,
-                        dt=0.0001,
+                        Nsteps=20000,
+                        dt=0.00005,
                         OOAtest=true)
 
     elseif occursin(r"test_OOA_DGFluxDiff_Chand_Euler_1D_.*$", testname)
@@ -136,13 +136,13 @@ function make_validation_tests_parameters(testname::String)
                         domain="unit_interval_linear",
                         Neldim=2,
                         numfluxtype="LF",
-                        AVcoeff="AVEC",
+                        AVcoeff="AVdissip",
                         ICname="GassnerBurgers",
                         BCname="periodic",
                         sourcename = "GassnerBurgers",
                         ODE_solver="LSERK45",
-                        Nsteps=10000,
-                        dt=0.0001,
+                        Nsteps=20000,
+                        dt=0.00005,
                         OOAtest=true)
 
     elseif occursin(r"test_OOA_DGArtVisc_Chand_Euler_1D_.*$", testname)
@@ -188,8 +188,8 @@ function make_validation_tests_parameters(testname::String)
                         BCname="periodic",
                         sourcename = "GassnerBurgers",
                         ODE_solver="LSERK45",
-                        Nsteps=10000,
-                        dt=0.0001,
+                        Nsteps=20000,
+                        dt=0.00005,
                         OOAtest=true,
                         gamma=1.4)
     

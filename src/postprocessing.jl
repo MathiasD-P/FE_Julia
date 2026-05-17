@@ -23,7 +23,7 @@ function compute_L2error(u, t, enodes::AbstractNodes, dg::DG, param::parameters)
         elseif param.pdetype == "Burgers"
             if param.BCname == "periodic"
                 if param.ICname == "GassnerBurgers"
-                    c = 1.2
+                    c = 2.2
                     error2 = (block_matmul(chie, u, dg.mesh.Nel) .- initialize_states(dg, param, epts .- c * t)).^2
                 end
             end
