@@ -130,7 +130,7 @@ param = parameters(
 
 pltrefpts = FE_Julia.evaluate(make_nodes("(25)-GLL"))
 chiplt = FE_Julia.Lagrange_Vandermonde1D(pltrefpts, FE_Julia.evaluate(make_nodes(param.bnodes)))
-mystyle = (xlabel=L"x", ylabel=L"u", color="#009E73", label="DGRC with LF flux (ES)", xlims=(-0.5,0.5), ylims=(-1.1,1.1), size=(700, 400))
+mystyle = (xlabel=L"x", ylabel=L"u", color="#009E73", label="Entropy Stable DG", xlims=(-0.5,0.5), ylims=(-1.1,1.1), size=(700, 400))
 
 if !(isdir("outputs/video_Levesque_ES"))
     mkdir("outputs/video_Levesque_ES")

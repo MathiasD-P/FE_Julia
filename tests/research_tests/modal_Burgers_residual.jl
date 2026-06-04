@@ -95,10 +95,10 @@ function research_test(bnodes, qnodes, qnodesexact, filenames=nothing)
     barnames = [LaTeXString("\\psi_{" * string(i) * "}") for i in 0:(dg.DOF - 1)]
     barnum = collect(1:5)
     w = 0.15
-    plt=bar(barnum .- 1.5w, psi[:,1], bar_width=w, label="DG", color="#F0E442", legend=:topleft, xlabel="Normalized Legendre mode", ylabel="Average Residual Error", title="Basis: " * bnodes * "; Quad: " * qnodes, dpi=500)
-    bar!(barnum .- 0.5w, psi[:,2], bar_width=w, label="Flux Differencing", color="#E69F00")
-    bar!(barnum .+ 0.5w, psi[:,3], bar_width=w, label="Artifical Viscosity", color="#56B4E9")
-    bar!(barnum .+ 1.5w, psi[:,4], bar_width=w, label="Residual Correction", color="#009E73")
+    plt=bar(barnum .- 1.5w, psi[:,1], bar_width=w, label="DG", color=:orange, legend=:topleft, xlabel="Normalized Legendre mode", ylabel="Average Residual Error", title="Basis: " * bnodes * "; Quad: " * qnodes, dpi=500)
+    bar!(barnum .- 0.5w, psi[:,2], bar_width=w, label="Flux Differencing", color=:red)
+    bar!(barnum .+ 0.5w, psi[:,3], bar_width=w, label="Artifical Viscosity", color=:blue)
+    bar!(barnum .+ 1.5w, psi[:,4], bar_width=w, label="Residual Correction", color=:green)
     xticks!(plt, barnum, barnames)
 
     if isnothing(filenames)

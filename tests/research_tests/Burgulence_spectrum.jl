@@ -56,10 +56,10 @@ function research_test(bnodes, qnodes, DGnames, numflux, colors, filenames=nothi
     k = fftfreq(length(myBurgulence.FFTpts), 1/(myBurgulence.FFTpts[1] - myBurgulence.FFTpts[2]))
     uhatIC = fft(FE_Julia.block_matmul(myBurgulence.chimap, myBurgulence.IC, params.Neldim))
 
-    plt_IC_spat = plot(results[DGnames[1]]["dg"].bpts, myBurgulence.IC, xlabel=L"x", ylabel=L"u_0", legend=false, color=:red)
+    plt_IC_spat = plot(results[DGnames[1]]["dg"].bpts, myBurgulence.IC, xlabel=L"x", ylabel=L"u_0", legend=false, color=:red, dpi=500)
 
     plt_IC_freq = plot(fftshift(abs.(k)[k .!= 0]), fftshift(abs.(uhatIC[k .!= 0]).^2), xlabel=L"k", ylabel=L"E(k)", xscale = :log10, yscale = :log10, label=L"\hat{u}_0", color=:red)
-    plot!(plt_IC_freq, fftshift(abs.(k[k .!= 0])), fftshift(1e4 .* abs.(k[k .!= 0]).^-2), color=:gray, linestyle=:dash, label=L"1/k^2", ylims=(1e-5,1e5))
+    plot!(plt_IC_freq, fftshift(abs.(k[k .!= 0])), fftshift(1e4 .* abs.(k[k .!= 0]).^-2), color=:gray, linestyle=:dash, label=L"1/k^2", ylims=(1e-5,1e5), dpi=500)
 
     # Post-processing and plotting
     
@@ -85,14 +85,14 @@ function research_test(bnodes, qnodes, DGnames, numflux, colors, filenames=nothi
         uhat = fft(FE_Julia.block_matmul(myBurgulence.chimap, u, params.Neldim))
         plot!(plt_all, fftshift(abs.(k)[k .!= 0]), fftshift(abs.(uhat[k .!= 0]).^2), label=mylabel, color=colors[colori])
     end
-    plot!(plt_all, fftshift(abs.(k[k .!= 0])), fftshift(1e4 .* abs.(k[k .!= 0]).^-2), color=:gray, linestyle=:dash, label=L"1/k^2", ylims=(1e-5,1e5))
+    plot!(plt_all, fftshift(abs.(k[k .!= 0])), fftshift(1e4 .* abs.(k[k .!= 0]).^-2), color=:gray, linestyle=:dash, label=L"1/k^2", ylims=(1e-5,1e5), dpi=500)
+    plot!(plt_all, [50, 50, 130, 130, 50], [0.05, 10, 10, 0.05, 0.05], linewidth=0.5, label=false, color=:black)
 
     plt_zoom = plot(xscale = :log10,
                yscale = :log10,
                title= "Numflux: " * params.numfluxtype * "; Basis: " * bnodes * "; Quad: " * qnodes,
                xlabel=L"k",
-               ylabel=L"k^2E(k)",
-               legend=:bottomleft)
+               ylabel=L"E(k)")
 
     for (colori, myDG) in enumerate(DGnames)
         if myDG == "DGArtVisc"
@@ -107,7 +107,7 @@ function research_test(bnodes, qnodes, DGnames, numflux, colors, filenames=nothi
 
         u = results[myDG]["solution"]
         uhat = fft(FE_Julia.block_matmul(myBurgulence.chimap, u, params.Neldim))
-        plot!(plt_zoom, fftshift(abs.(k)[k .!= 0]), fftshift(abs.(k)[k .!= 0].^2 .* abs.(uhat[k .!= 0]).^2), label=mylabel, color=colors[colori], xlims=(50,130))
+        plot!(plt_zoom, fftshift(abs.(k)[k .!= 0]), fftshift(abs.(uhat[k .!= 0]).^2), label=mylabel, color=colors[colori], xlims=(50,130), ylims=(0.05,10), dpi=500)
     end
 
     if isnothing(filenames)
@@ -184,7 +184,7 @@ bnodes = "(5)-GL"
 qnodes = "(5)-GL"
 numflux = "LF"
 DGnames = ["DGAddRes", "DGArtVisc", "DGFluxDiff", "DGStd"]
-colors = ["#009E73", "#56B4E9", "#E69F00", "#F0E442"] # colors used for plotting
+colors = [:green, :blue, :red, :orange] # colors used for plotting
 
 results = research_test(bnodes, qnodes, DGnames, numflux, colors,
                         ("outputs/fig_BurgulenceIC", "outputs/fig_BurgulenceICfreq", "outputs/fig_Burgulencespectrum", "outputs/fig_Burgulencespectrumzoom"))
