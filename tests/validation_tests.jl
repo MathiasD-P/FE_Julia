@@ -187,3 +187,86 @@ function test_viscosity(param, Nrefinements; filename=nothing)
 
     return error[end,3], error[end,5]
 end
+
+function test_dtmax(param, Tfinal, tol)
+    function you_do_explode(solution::Array)
+        check = (any(isnan, solution) || any(x -> abs(x) > param.maxval, solution))
+        return check
+    end
+
+    Nsolvesmax = 1000
+
+    dtlim = copy(param.dtlim)
+    if dtlim[1] >= dtlim[2]
+        error("You must initialize dt1 < dt2!")
+    end
+
+    # Test if initial dtlims work
+    crash_flag = false
+    try
+        param.dt = dtlim[1]
+        param.Nsteps = round(Int, Tfinal / param.dt) + 1
+        output = set_up_and_solve(param)
+        
+        if !you_do_explode(output["solution"])
+            println("dt1 passes!")
+        else
+            crash_flag = true
+        end
+
+    catch e
+        println(e)
+        error("Test case should not crash for dt1")
+    end
+    if crash_flag
+        error("Test case should not crash for dt1")
+    end
+
+
+    crash_flag = true
+    try
+        param.dt = dtlim[2]
+        param.Nsteps = round(Int, Tfinal / param.dt) + 1
+        output = set_up_and_solve(param)
+        
+        if you_do_explode(output["solution"])
+            println("dt2 crashes!")
+        else
+            crash_flag = false
+        end
+
+    catch e
+        println(e)
+        println("dt2 crashes!")
+    end
+    if !crash_flag
+        error("Test case should crash for dt2")
+    end
+
+    Nsolves = 0
+    while abs(dtlim[2] - dtlim[1]) > tol
+        dt = 0.5 * sum(dtlim)
+        try
+            param.dt = dt
+            param.Nsteps = round(Int, Tfinal / param.dt) + 1
+            output = set_up_and_solve(param)
+
+            if you_do_explode(output["solution"])
+                dtlim[2] = dt
+            else
+                dtlim[1] = dt
+            end
+        catch e
+            println(e)
+            dtlim[2] = dt
+        end
+
+        Nsolves +=1
+        if Nsolves >= Nsolvesmax
+            println("Maximum number of iterations exceeded!")
+            break
+        end
+    end
+
+    return dtlim
+end

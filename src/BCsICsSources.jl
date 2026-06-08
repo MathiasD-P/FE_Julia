@@ -13,7 +13,7 @@ function initialize_states(dg::DG, param::parameters, pts = nothing)
             error("IC only works in 1D!")
         end
 
-        u .= sin.(2*pi .* pts)
+        u .= sin.(2*pi .* param.k[1] .* pts)
 
         return u
     
@@ -33,6 +33,16 @@ function initialize_states(dg::DG, param::parameters, pts = nothing)
 
         u = ones(size(pts))
         u[pts .<= 0.0] .= -1.0
+
+        return u
+    
+    elseif param.ICname == "zeros_and_ones"
+        if param.dim != 1
+            error("IC only works in 1D!")
+        end
+
+        u = [Float64(isodd(i)) for i in 1:length(pts)] 
+        u = reshape(u, (length(u),1))
 
         return u
         

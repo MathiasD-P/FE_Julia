@@ -36,24 +36,30 @@ mutable struct parameters
     calc_entropy::Bool
     OOAtest::Bool
     Nrefinements::Union{Integer,Nothing}
+    dtlim::Union{Vector{Real}, Nothing}
+    maxval::Union{Real,Nothing}
 
     # And all other physical constants for the problem...
     gamma # specific heat ratio for Euler
     a # advection speed for lin advection
     addviscosity # viscosity offset for artificial viscosity
+    k::Union{Vector{Real},Nothing} # wavenumber for sinusoidal initializations (by state)
     kmax # wavenumber cutoff for Burgulence
 
     function parameters(;
                      pdetype=nothing,
                      dim=nothing,
                      dgtype=nothing,
+
                      bnodes=nothing,
                      qnodes=nothing,
                      enodes=nothing,
                      fnodes=nothing,
+
                      refelem=nothing,
                      domain=nothing,
                      Neldim=nothing,
+
                      numfluxtype=nothing,
                      twoptfluxtype=nothing,
                      ICname=nothing,
@@ -62,18 +68,54 @@ mutable struct parameters
                      ODE_solver=nothing,
                      Nsteps=nothing,
                      dt=nothing,
+
                      AVcoeff=nothing,
                      Rescorr=nothing,
+
                      save=false,
                      calc_entropy=false,
                      OOAtest=false,
                      Nrefinements=nothing,
+                     dtlim=nothing,
+                     maxval=nothing,
+
                      gamma=nothing,
                      a=nothing,
                      addviscosity=nothing,
+                     k=nothing,
                      kmax=nothing)
 
-                     new(pdetype, dim, dgtype, bnodes, qnodes, fnodes, enodes, refelem, domain, Neldim, numfluxtype, twoptfluxtype, ICname, BCname, sourcename, ODE_solver, Nsteps, dt, AVcoeff, Rescorr, save, calc_entropy, OOAtest, Nrefinements, gamma,a,addviscosity,kmax)
+                     new(pdetype,
+                         dim,
+                         dgtype,
+                         bnodes,
+                         qnodes,
+                         fnodes,
+                         enodes,
+                         refelem,
+                         domain,
+                         Neldim,
+                         numfluxtype,
+                         twoptfluxtype,
+                         ICname,
+                         BCname,
+                         sourcename,
+                         ODE_solver,
+                         Nsteps,
+                         dt,
+                         AVcoeff,
+                         Rescorr,
+                         save,
+                         calc_entropy,
+                         OOAtest,
+                         Nrefinements,
+                         dtlim,
+                         maxval,
+                         gamma,
+                         a,
+                         addviscosity,
+                         k,
+                         kmax)
     end
 end
 
