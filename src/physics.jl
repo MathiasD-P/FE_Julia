@@ -113,9 +113,9 @@ function compute_two_pt_flux!(F::Union{Tuple{AbstractArray}, Tuple{AbstractArray
             if param.pdetype == "Burgers"
                 if param.twoptfluxtype == "EC_split"
                     f = ((1/6) .* (un.^2 .+ up .* un .+ up.^2),)
-                elseif param.numfluxtype == "AV_split"
+                elseif param.twoptfluxtype == "AV_split"
                     f = ((1/8) .* (un.^2 .+ 2.0 .* up .* un .+ up.^2),)
-                elseif param.numfluxtype == "OQ_split"
+                elseif param.twoptfluxtype == "OQ_split"
                     p = M-1
                     f = ((1/(4.0 * (2*p+1))) .* ((p+1).*(un.^2 .+ up.^2) .+ (2.0 * p) .* (up .* un)),)
                 else
