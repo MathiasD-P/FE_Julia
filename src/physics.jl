@@ -93,7 +93,7 @@ end
 #####################################################################
 
 function compute_two_pt_flux!(F::Union{Tuple{AbstractArray}, Tuple{AbstractArray, AbstractArray}}, u::AbstractMatrix, uf::AbstractMatrix, param::parameters)
-    M, = size(u,1)
+    M = size(u,1)
     Npts = size(F[1], 1)
 
     @inbounds for j in 1:Npts
@@ -113,6 +113,11 @@ function compute_two_pt_flux!(F::Union{Tuple{AbstractArray}, Tuple{AbstractArray
             if param.pdetype == "Burgers"
                 if param.twoptfluxtype == "EC_split"
                     f = ((1/6) .* (un.^2 .+ up .* un .+ up.^2),)
+                elseif param.numfluxtype == "AV_split"
+                    f = ((1/8) .* (un.^2 .+ 2.0 .* up .* un .+ up.^2),)
+                elseif param.numfluxtype == "OQ_split"
+                    p = M-1
+                    f = ((1/(4.0 * (2*p+1))) .* ((p+1).*(un.^2 .+ up.^2) .+ (2.0 * p) .* (up .* un)),)
                 else
                     error("Undefined two-point flux!")
                 end
