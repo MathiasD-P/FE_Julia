@@ -25,6 +25,22 @@ function compute_L2error(u, t, enodes::AbstractNodes, dg::DG, param::parameters)
                 if param.ICname == "GassnerBurgers"
                     c = 2.2
                     error2 = (block_matmul(chie, u, dg.mesh.Nel) .- initialize_states(dg, param, epts .- c * t)).^2
+
+                elseif param.ICname == "sin_1state"
+                    f = ones(size(epts))
+                    utrue = ones(size(epts))
+                    i = 0
+                    while maximum(abs.(f)) > 1e-13
+                        fsin!(param.k, epts, t, utrue, f)
+                        Newton_step_sin!(param.k, epts, t, utrue, f)
+                        i += 1
+
+                        if i > 2000
+                            error("Newton iteration did not converge!")
+                        end
+                    end
+
+                    error2 = (block_matmul(chie, u, dg.mesh.Nel) .- utrue).^2
                 end
             end
         
@@ -46,4 +62,13 @@ function compute_L2error(u, t, enodes::AbstractNodes, dg::DG, param::parameters)
 
         return sum(sqrt.(sum(block_matmul(Diagonal(we), error2, dg.mesh.Nel), dims=1)))
     end
+end
+
+# HELPER FUNCTIONS FOR IMPLICIT BURGERS SOLVE
+function fsin!(k, x, t, u, dest)
+    dest .= sin.(2*pi*k .* (x .- t .* u)) .- u
+end
+
+function Newton_step_sin!(k, x, t, u, f)
+    u .= u .- f ./ (-2*pi*t*k .* cos.(2*pi*k .* (x .- t .* u)) .- 1.0)
 end
