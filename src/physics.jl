@@ -114,10 +114,14 @@ function compute_two_pt_flux!(F::Union{Tuple{AbstractArray}, Tuple{AbstractArray
                 if param.twoptfluxtype == "EC_split"
                     f = ((1/6) .* (un.^2 .+ up .* un .+ up.^2),)
                 elseif param.twoptfluxtype == "AV_split"
-                    f = ((1/8) .* (un.^2 .+ 2.0 .* up .* un .+ up.^2),)
+                    alpha = 0.5
+                    beta = 0.5
+                    f = (0.25 * alpha .* (un.^2 .+ up.^2) .+ 0.5 * beta .* up .* un,)
                 elseif param.twoptfluxtype == "OQ_split"
                     p = M-1
-                    f = ((1/(4.0 * (2*p+1))) .* ((p+1).*(un.^2 .+ up.^2) .+ (2.0 * p) .* (up .* un)),)
+                    alpha = (p+1) / (2*p+1)
+                    beta = p / (2*p+1)
+                    f = (0.25 * alpha .* (un.^2 .+ up.^2) .+ 0.5 * beta .* up .* un,)
                 else
                     error("Undefined two-point flux!")
                 end
