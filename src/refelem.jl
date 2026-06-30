@@ -94,6 +94,70 @@ struct RefElemStd <: AbstractRefElem
             LIFT
         )
     end
+
+    function RefElemStd(bnodestype::AbstractNodes, qnodestype::AbstractNodes, qmnodestype::AbtractNodes, fnodestype::Fnodes)
+        shape = fnodestype.refshape
+
+        dim = bnodestype.dim
+        Nfaces = numfaces(fnodestype)
+        Nbnodes = numnodes(bnodestype)
+        Nqnodes = numnodes(qnodestype)
+        Nfnodes = numnodes(fnodestype.nodes)
+
+        nref = unitnormals(fnodestype)
+
+        bnodestype = bnodestype
+        qnodestype = qnodestype
+        fnodestype = fnodestype
+
+        chiq, wq, dchi, bnodes, qnodes = extract_volume_operators(bnodestype, qnodestype)
+        chimq, wmq, _, _, _ = extract_volume_operators(bnodestype, qmnodestype)
+        chif, wf, fnodes = extract_face_operators(bnodestype, fnodestype)
+
+        fnodes = vcat([fnodes[iface] for iface in 1:Nfaces]...)
+        chif = vcat([chif[iface] for iface in 1:Nfaces]...) # VERY INEFFICIENT
+        bh = [vcat([wf[iface] .* nref[iface][idim] for iface in 1:Nfaces]...) for idim=1:dim]
+
+        M = chiq' * Diagonal(wq) * chiq
+        Mm = chimq' * Diagonal(wmq) * chimq
+        Ph = (M \ chiq' * Diagonal(wq))
+        Qh = (d -> chiq' * Diagonal(wq) * d).(dchi)
+        Dh = (q -> Mm \ q).(Qh)
+        MinvQhT = (q -> M \ q').(Qh)
+        LIFT = (b -> (Mm \ chif') * Diagonal(b)).(bh)
+
+        new(
+            shape,
+
+            dim,
+            Nfaces,
+            Nbnodes,
+            Nqnodes,
+            Nfnodes,
+
+            bnodestype,
+            qnodestype,
+            fnodestype,
+
+            bnodes,
+            qnodes,
+            fnodes,
+
+            nref,
+
+            chiq,
+            chif,
+            wq,
+
+            M,
+            bh,
+            Dh,
+            Qh,
+            MinvQhT,
+            Ph,
+            LIFT
+        )
+    end
 end
 
 struct RefElemSBP <: AbstractRefElem
@@ -154,6 +218,83 @@ struct RefElemSBP <: AbstractRefElem
 
         LIFT = (b -> (M \ chif') * Diagonal(b)).(bh)
         MVF = M \ [chiq ; chif]'
+
+        # We finally build the skew symmetric SBP operator
+        SS = Vector{Matrix{Float64}}(undef, dim)
+        for idim in 1:dim
+            SSi = zeros((Nqnodes + Nfnodes * Nfaces, Nqnodes + Nfnodes * Nfaces))
+
+            Q = Ph' * chiq' * Diagonal(wq) * dchi[idim] * Ph
+            EB = (chif * Ph)' * Diagonal(bh[idim])
+
+            SSi[1:Nqnodes, 1:Nqnodes] = Q - Q'
+            SSi[1:Nqnodes, Nqnodes+1:end] = EB
+            SSi[Nqnodes+1:end, 1:Nqnodes] = -EB'
+
+            SS[idim] = SSi
+        end
+
+        new(
+            shape,
+
+            dim,
+            Nfaces,
+            Nbnodes,
+            Nqnodes,
+            Nfnodes,
+
+            bnodestype,
+            qnodestype,
+            fnodestype,
+
+            bnodes,
+            qnodes,
+            fnodes,
+
+            nref,
+
+            chiq,
+            chif,
+            wq,
+
+            M,
+            SS,
+            MVF,
+            bh,
+            Ph,
+            LIFT
+        )
+    end
+
+    function RefElemSBP(bnodestype::AbstractNodes, qnodestype::AbstractNodes, qmnodestype::AbstractNodes, fnodestype::Fnodes)
+        shape = fnodestype.refshape
+
+        dim = bnodestype.dim
+        Nfaces = numfaces(fnodestype)
+        Nbnodes = numnodes(bnodestype)
+        Nqnodes = numnodes(qnodestype)
+        Nfnodes = numnodes(fnodestype.nodes)
+
+        nref = unitnormals(fnodestype)
+
+        bnodestype = bnodestype
+        qnodestype = qnodestype
+        fnodestype = fnodestype
+
+        chiq, wq, dchi, bnodes, qnodes = extract_volume_operators(bnodestype, qnodestype)
+        chimq, wmq, _, _, _ = extract_volume_operators(bnodestype, qmnodestype)
+        chif, wf, fnodes = extract_face_operators(bnodestype, fnodestype)
+
+        fnodes = vcat([fnodes[iface] for iface in 1:Nfaces]...)
+        chif = vcat([chif[iface] for iface in 1:Nfaces]...) # VERY INEFFICIENT
+        bh = [vcat([wf[iface] .* nref[iface][idim] for iface in 1:Nfaces]...) for idim=1:dim]
+
+        M = chiq' * Diagonal(wq) * chiq
+        Mm = chimq' * Diagonal(wmq) * chimq
+        Ph = M \ chiq' * Diagonal(wq)
+
+        LIFT = (b -> (Mm \ chif') * Diagonal(b)).(bh)
+        MVF = Mm \ [chiq ; chif]'
 
         # We finally build the skew symmetric SBP operator
         SS = Vector{Matrix{Float64}}(undef, dim)

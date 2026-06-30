@@ -58,17 +58,37 @@ function set_up_problem(param::parameters)
     end
 
     if param.dgtype =="DGStd"
-        refelem = RefElemStd(bnodes, qnodes, fnodes)
+        if isnothing(param.qmnodes)
+            refelem = RefElemStd(bnodes, qnodes, fnodes)
+        else
+            refelem = RefElemStd(bnodes, qnodes, qmnodes, fnodes)
+        end
         dg = DGStd(Nstates, refelem, mesh)
+
     elseif param.dgtype == "DGFluxDiff"
-        refelem = RefElemSBP(bnodes, qnodes, fnodes)
+        if isnothing(param.qmnodes)
+            refelem = RefElemSBP(bnodes, qnodes, fnodes)
+        else
+            refelem = RefElemSBP(bnodes, qnodes, qmnodes, fnodes)
+        end
         dg = DGFluxDiff(Nstates, refelem, mesh)
+
     elseif param.dgtype == "DGArtVisc"
-        refelem = RefElemStd(bnodes, qnodes, fnodes)
+        if isnothing(param.qmnodes)
+            refelem = RefElemStd(bnodes, qnodes, fnodes)
+        else
+            refelem = RefElemStd(bnodes, qnodes, qmnodes, fnodes)
+        end
         dg = DGArtVisc(Nstates, refelem, mesh)
+        
     elseif param.dgtype == "DGAddRes"
-        refelem = RefElemStd(bnodes, qnodes, fnodes)
+        if isnothing(param.qmnodes)
+            refelem = RefElemStd(bnodes, qnodes, fnodes)
+        else
+            refelem = RefElemStd(bnodes, qnodes, qmnodes, fnodes)
+        end
         dg = DGAddRes(Nstates, refelem, mesh)
+
     else
         error("Unknown DG type!")
     end
