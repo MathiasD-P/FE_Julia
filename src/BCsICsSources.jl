@@ -13,7 +13,7 @@ function initialize_states(dg::DG, param::parameters, pts = nothing)
             error("IC only works in 1D!")
         end
 
-        u .= sin.(2*pi .* param.k[1] .* pts)
+        u .= sin.(2*pi .* param.k[1] .* (pts .- param.phi)) .+ param.av
 
         return u
     

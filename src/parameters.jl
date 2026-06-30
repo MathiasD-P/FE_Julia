@@ -44,6 +44,8 @@ mutable struct parameters
     a # advection speed for lin advection
     addviscosity # viscosity offset for artificial viscosity
     k::Union{Vector{Real},Nothing} # wavenumber for sinusoidal initializations (by state)
+    phi::Union{Vector{Real},Nothing} # phase shift for sinusoidal initializations (by state)
+    av::Union{Vector{Real},Nothing} # average for sinusoidal initializations (by state)
     kmax # wavenumber cutoff for Burgulence
 
     function parameters(;
@@ -83,6 +85,8 @@ mutable struct parameters
                      a=nothing,
                      addviscosity=nothing,
                      k=nothing,
+                     phi=nothing,
+                     av=nothing,
                      kmax=nothing)
 
                      new(pdetype,
@@ -115,6 +119,8 @@ mutable struct parameters
                          a,
                          addviscosity,
                          k,
+                         phi,
+                         av,
                          kmax)
     end
 end

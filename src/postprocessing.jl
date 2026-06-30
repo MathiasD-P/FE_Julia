@@ -31,8 +31,8 @@ function compute_L2error(u, t, enodes::AbstractNodes, dg::DG, param::parameters)
                     utrue = ones(size(epts))
                     i = 0
                     while maximum(abs.(f)) > 1e-13
-                        fsin!(param.k, epts, t, utrue, f)
-                        Newton_step_sin!(param.k, epts, t, utrue, f)
+                        fsin!(param.k, param.phi, param.av, epts, t, utrue, f)
+                        Newton_step_sin!(param.k, param.phi, epts, t, utrue, f)
                         i += 1
 
                         if i > 2000
@@ -65,10 +65,10 @@ function compute_L2error(u, t, enodes::AbstractNodes, dg::DG, param::parameters)
 end
 
 # HELPER FUNCTIONS FOR IMPLICIT BURGERS SOLVE
-function fsin!(k, x, t, u, dest)
-    dest .= sin.(2*pi*k .* (x .- t .* u)) .- u
+function fsin!(k, phi, av, x, t, u, dest)
+    dest .= sin.(2*pi*k .* (x .- t .* u .- phi)) .- u .+ av
 end
 
-function Newton_step_sin!(k, x, t, u, f)
-    u .= u .- f ./ (-2*pi*t*k .* cos.(2*pi*k .* (x .- t .* u)) .- 1.0)
+function Newton_step_sin!(k, phi, x, t, u, f)
+    u .= u .- f ./ (-2*pi*t*k .* cos.(2*pi*k .* (x .- t .* u .- phi)) .- 1.0)
 end
