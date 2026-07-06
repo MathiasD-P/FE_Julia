@@ -95,7 +95,7 @@ struct RefElemStd <: AbstractRefElem
         )
     end
 
-    function RefElemStd(bnodestype::AbstractNodes, qnodestype::AbstractNodes, qmnodestype::AbtractNodes, fnodestype::Fnodes)
+    function RefElemStd(bnodestype::AbstractNodes, qnodestype::AbstractNodes, qmnodestype::AbstractNodes, fnodestype::Fnodes)
         shape = fnodestype.refshape
 
         dim = bnodestype.dim
