@@ -48,6 +48,10 @@ function set_up_problem(param::parameters)
     qnodes = make_nodes(param.qnodes)
     fnodes = make_nodes(param.refelem, param.fnodes)
 
+    if !isnothing(param.qmnodes)
+        qmnodes = make_nodes(param.qmnodes)
+    end
+
     # initialize ref element and DG object
     if param.pdetype == "LinAdv"
         Nstates = 1
@@ -80,7 +84,7 @@ function set_up_problem(param::parameters)
             refelem = RefElemStd(bnodes, qnodes, qmnodes, fnodes)
         end
         dg = DGArtVisc(Nstates, refelem, mesh)
-        
+
     elseif param.dgtype == "DGAddRes"
         if isnothing(param.qmnodes)
             refelem = RefElemStd(bnodes, qnodes, fnodes)
