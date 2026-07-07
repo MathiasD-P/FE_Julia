@@ -26,6 +26,15 @@ function initialize_states(dg::DG, param::parameters, pts = nothing)
 
         return u
     
+    elseif param.ICname == "tanh_1state"
+        if param.dim != 1
+            error("IC only works in 1D!")
+        end
+
+        u .= tanh.(param.k[1] .* (pts .- param.phi[1]))
+
+        return u
+    
     elseif param.ICname == "rarefaction_1state"
         if param.dim != 1
             error("IC only works in 1D!")
@@ -193,6 +202,9 @@ function initialize_BCHandler(dg::DG, param::parameters)
     
     elseif param.BCname == "unit_rarefaction"
         return Dict(-1 => -ones((dg.Nstates,)), -2 => ones((dg.Nstates,)))
+    
+    elseif param.BCname == "unit_shock"
+        return Dict(-1 => ones((dg.Nstates,)), -2 => -ones((dg.Nstates,)))
 
     elseif param.BCname == "SodShockTube"
         return Dict(-1 => [1.0, 0.0, 1.0 / (param.gamma-1)], -2 => [0.125, 0.0, 0.1 / (param.gamma-1)])
