@@ -125,7 +125,37 @@ mutable struct parameters
     end
 end
 
-function parse_parameters(param_file)
-    return
+function parse_parameters_PDE(param::parameters)
+    if param.pdetype == "LinAdv"
+        PDE = PDE_LinAdv(param.dim, param.a)
+    elseif param.pdetype == "Burgers"
+        PDE = PDE_Burgers(param.dim)
+    elseif param.pdetype == "EulerPerfGas"
+        PDE = PDE_EulerPerfGas(param.dim, param.gamma)
+    else
+        error("The PDE type $(param.pdetype) is not defined. Please choose from LinAdv, Burgers, or EulerPerfGas.")
+    end
+
+    return PDE
 end
 
+function parse_parameters_numflux(param::parameters)
+    if param.numfluxtype == "central"
+        numflux = CentralNumFlux()
+    elseif param.numfluxtype == "upwind"
+        numflux = UpwindNumFlux()
+    elseif param.numfluxtype == "EC_split"
+        numflux = ECSplitNumFlux()
+    elseif param.numfluxtype == "LF"
+        numflux = LFNumFlux()
+    elseif param.numfluxtype == "EC_Chandrashekar"
+        numflux = ECChandrashekarNumFlux()
+    elseif param.numfluxtype == "ES_Chandrashekar_dissip"
+        numflux = ESChandrashekarDissipNumFlux()
+    else
+        error("The numerical flux $(param.numfluxtype) is not defined.")
+    end
+end
+
+function parse_parameters_tpflux(param::parameters)
+end

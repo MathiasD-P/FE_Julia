@@ -5,94 +5,322 @@
 # THE SOLUTION IS ALWAYS A MATRIX OF SIZE (Nstate, NDOF)
 
 #####################################################################
-# Physical Fluxes
+# Physics Structure
 #####################################################################
 
-function compute_physflux(u::AbstractMatrix, param::parameters)
-    if param.pdetype == "LinAdv"
-        return (param.a .* u,)
+# The PhysProp structure contains the PDE, the numerical flux and the two-point flux used by the solvers
 
-    elseif param.pdetype == "Burgers"
-        return (0.5 .* u.^2,)
+mutable struct PhysProp
+    PDE::GoverningPDE
+    source::Union{CLawSource, Nothing}
+    numflux::NumFlux
+    tpflux::TPFlux
+    artvisc::Union{ArtViscModel, Nothing}
+    rescorr::Union{ResCorrModel, Nothing}
+end
 
-    elseif param.pdetype == "EulerPerfGas"
-        return Euler_physflux(u, param)
-    else
-        error("Unknown PDE type!")
+
+#####################################################################
+# Governing Equations
+#####################################################################
+
+# Equations supported by our solvers
+
+abstract type GoverningPDE end
+
+struct LinAdv <: GoverningPDE
+    a::Float64
+    dim::Int64
+    Nstates::Int64
+
+    function LinAdv(dim::Int, a::Real)
+        new(
+            a,
+            dim,
+            1
+        )
     end
 end
+
+struct LinAdvLogE <: GoverningPDE
+    a::Float64
+    dim::Int64
+    Nstates::Int64
+
+    function LinAdvLogE(dim::Int, a::Real)
+        new(
+            a,
+            dim,
+            1
+        )
+    end
+end
+
+struct Burgers <: GoverningPDE
+    dim::Int64
+    Nstates::Int64
+
+    function Burgers(dim::Int)
+        new(
+            dim,
+            1
+        )
+    end
+end
+
+struct EulerPerfGas <: GoverningPDE
+    gamma::Float64
+    dim::Int64
+    Nstates::Int64
+
+    function EulerPerfGas(dim::Int, gamma::Real)
+        new(
+            gamma,
+            dim,
+            2 + dim
+        )
+    end
+end
+
+# Physical fluxes for our supported PDEs
+
+function compute_physflux(u::AbstractMatrix, PDE::LinAdv)
+    return (PDE.a .* u,)
+end
+
+function compute_physflux(u::AbstractMatrix, PDE::LinAdvLogE)
+    return (PDE.a .* u,)
+end
+
+function compute_physflux(u::AbstractMatrix, PDE::Burgers)
+    return (0.5 .* u.^2,)
+end
+
+function compute_physflux(u::AbstractMatrix, PDE::EulerPerfGas)
+    return Euler_physflux(u, PDE)
+end
+
+
+# Conservative variables to entropy variables for our supported PDEs
+
+function compute_evar(u::AbstractMatrix, PDE::LinAdvLogE)
+    return -u.^(-1)
+end
+
+function compute_evar(u::AbstractMatrix, PDE::Burgers)
+    return u
+end
+
+function compute_evar(u::AbstractMatrix, PDE::EulerPerfGas)
+    return Euler_evar(u, PDE)
+end
+
+
+# Entropy variables to conservative variables for our supported PDEs
+
+function compute_cvar(v::AbstractMatrix, PDE::LinAdvLogE)
+    return -v.^(-1)
+end
+
+function compute_cvar(v::AbstractMatrix, PDE::Burgers)
+    return v
+end
+
+function compute_cvar(v::AbstractMatrix, PDE::EulerPerfGas)
+    return Euler_cvar(v, PDE)
+end
+
+# Compute the entropy for our supported PDEs
+
+function compute_local_entropy(u::AbstractMatrix, PDE::LinAdv)
+    return 0.5 .* u.^2
+end
+
+function compute_local_entropy(u::AbstractMatrix, PDE::LinAdvLogE)
+    return -log.(u)
+end
+
+function compute_local_entropy(u::AbstractMatrix, PDE::EulerPerfGas)
+    return -u[:,1] .* Euler_cvar_entropy(u, PDE)
+end
+
+# Compute the entropy potential for our supported PDEs
+
+function compute_cvar_potential(u::AbstractArray, PDE::LinAdvLogE)
+    return (PDE.a .* log.(u),)
+end
+
+function compute_cvar_potential(u::AbstractArray, PDE::Burgers)
+    return ((1/6) .* u.^3,)
+end
+
+function compute_cvar_potential(u::AbstractArray, PDE::EulerPerfGas)
+    return Tuple((PDE.gamma-1) .* u[:,istate] for istate in 2:1+PDE.dim) # CAREFUL, MISTAKE IN (Chan, 2025)
+end
+
+
+# Compute Hessian from conservative variables
+# Operates on one node at the time.
+
+function compute_cvar_Hessian(u::AbstractVector, PDE::Burgers)
+    K = Matrix{Float64}(undef, 1, 1)
+    K[1,1] = 1.0
+    return K
+end
+
+function compute_cvar_Hessian(u::AbstractVector, PDE::EulerPerfGas)
+    return Euler_cvar_Hessian(u, PDE)
+end
+
+
+#####################################################################
+# Source Terms
+#####################################################################
+
+# The specific source expressions are defined in BCsICsSources.jl
+
+abstract type CLawSource end
+
 
 #####################################################################
 # Numerical Fluxes
 #####################################################################
 
-function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Union{AbstractMatrix,Nothing}, param::parameters)
-    if param.pdetype == "LinAdv"
-        if param.numfluxtype == "central"
-            return (0.5 .* param.a .* (up .+ un),)
-        elseif param.numfluxtype == "upwind"
-            f = copy(up)
-            if param.a * nphys[1] >= 0
-                index = nphys .== nphys[1]
-            else
-                index = nphys .!= nphys[1]
-            end
-            f[index] = un[index]  
-            return (param.a .* f,)
-        else
-            error("Undefined numerical flux!")
-        end
+abstract type NumFlux end
 
-    elseif param.pdetype == "Burgers"
-        if param.numfluxtype == "central"
-            return (0.25 .* (up.^2 .+ un.^2),)
-        elseif param.numfluxtype == "LF"
-            return (0.25 .* ((un.^2 .+ up.^2) .- max.(abs.(up), abs.(un)) .* (up .- un) .* nphys),)
-        elseif param.numfluxtype == "upwind"
-            f = similar(up)
-            vel = 0.5 .* (un.^2 .- up.^2) ./ (un .- up) # local velocity
-            slicing = vel .* nphys .>= 0
-            notslicing = .!slicing
-            f[slicing] .= 0.5 .* un[slicing].^2
-            f[notslicing] .= 0.5 .* up[notslicing].^2
-            return (f,)
-        elseif param.numfluxtype == "EC_split"
-            return ((1/6) .* (un.^2 .+ up .* un .+ up.^2),)
-        else
-            error("Undefined numerical flux!")
-        end
+struct CentralNumFlux <: NumFlux end
 
-    elseif param.pdetype == "EulerPerfGas"
-        if param.numfluxtype == "central"
-            fp = Euler_physflux(up, param)
-            fn = Euler_physflux(up, param)
-            for dir in 1:param.dim
-                fn[dir] .= fn[dir] .+ fp[dir]
-            end
-            return fn
+struct UpwindNumFlux <: Numflux end
 
-        elseif param.numfluxtype == "EC_Chandrashekar"
-            return Euler_numflux_Chandrashekar(up, un, param)
+struct LFNumFlux <: Numflux end
 
-        elseif param.numfluxtype == "ES_Chandrashekar_dissip"
-            f = Euler_numflux_Chandrashekar(up, un, param)
-            d = Euler_numdissip_ES(un, up, nphys, param)
-            for dir in 1:param.dim
-                f[dir] .= f[dir] .+ d[dir]
-            end
-            return f
+struct ECSplitNumFlux <: Numflux end
 
-        else
-            error("Undefined numerical flux!")
-        end
+struct ECChandrashekarNumFlux <: Numflux end
+
+struct ESChandrashekarDissipNumFlux <: Numflux end
+
+
+# Linear advection numerical fluxes
+
+function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys, numflux::CentralNumFlux, PDE::Union{LinAdv, LinAdvLogE})
+    return (0.5 .* PDE.a .* (up .+ un),)
+end
+
+function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::AbstractMatrix, numflux::UpwindNumFlux, PDE::Union{LinAdv, LinAdvLogE})
+    f = copy(up)
+
+    if PDE.a * nphys[1] >= 0
+        index = nphys .== nphys[1]
+    else
+        index = nphys .!= nphys[1]
     end
+
+    f[index] = un[index]
+    return (PDE.a .* f,)
+end
+
+
+# Burgers numerical fluxes
+
+function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Union{AbstractMatrix,Nothing}, numflux::CentralNumFlux, PDE::Burgers)
+    return (0.25 .* (up.^2 .+ un.^2),)
+end
+
+function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::AbstractMatrix, numflux::UpwindNumFlux, PDE::Burgers)
+    f = similar(up)
+
+    vel = 0.5 .* (un.^2 .- up.^2) ./ (un .- up) # local velocity
+    slicing = vel .* nphys .>= 0
+    notslicing = .!slicing
+    f[slicing] .= 0.5 .* un[slicing].^2
+    f[notslicing] .= 0.5 .* up[notslicing].^2
+
+    return (f,)
+end
+
+function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Union{AbstractMatrix,Nothing}, numflux::LFNumFlux, PDE::Burgers)
+    return (0.25 .* ((un.^2 .+ up.^2) .- max.(abs.(up), abs.(un)) .* (up .- un) .* nphys),)
+end
+
+function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Union{AbstractMatrix,Nothing}, numflux::ECSplitNumFlux, PDE::Burgers)
+    return ((1/6) .* (un.^2 .+ up .* un .+ up.^2),)
+end
+
+
+# Euler numerical fluxes
+
+function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Union{AbstractMatrix,Nothing}, numflux::CentralNumFlux, PDE::EulerPerfGas)
+    fp = Euler_physflux(up, PDE)
+    fn = Euler_physflux(up, PDE)
+
+    for dir in 1:PDE.dim
+        fn[dir] .= fn[dir] .+ fp[dir]
+    end
+
+    return fn
+end
+
+function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Union{AbstractMatrix,Nothing}, numflux::ECChandrashekarNumFlux, PDE::EulerPerfGas)
+    return Euler_numflux_Chandrashekar(up, un, PDE)
+end
+
+function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::AbstractMatrix, numflux::ESChandrashekarDissipNumFlux, PDE::EulerPerfGas)
+    f = Euler_numflux_Chandrashekar(up, un, PDE)
+    d = Euler_numdissip_ES(un, up, nphys, PDE)
+
+    for dir in 1:PDE.dim
+        f[dir] .= f[dir] .+ d[dir]
+    end
+
+    return f
 end
 
 #####################################################################
 # Two-point Fluxes
 #####################################################################
 
-function compute_two_pt_flux!(F::Union{Tuple{AbstractArray}, Tuple{AbstractArray, AbstractArray}}, u::AbstractMatrix, uf::AbstractMatrix, param::parameters)
+abstract type TPFlux end
+
+struct ECSplitTPFlux <: TPFlux end
+
+struct AVSplitTPFlux <: TPFlux end
+
+struct SplitTPFlux <: TPFlux
+    alpha::Float64
+    beta::Float64
+end
+
+struct ECChandrashekarTPFlux end
+
+
+# Burgers two-point fluxes
+
+function compute_two_pt_flux(up, un, tpflux::ECSplitTPFlux, PDE::Burgers)
+    return ((1/6) .* (un.^2 .+ up .* un .+ up.^2),)
+end
+
+function compute_two_pt_flux(up, un, tpflux::AVSplitTPFlux, PDE::Burgers)
+    alpha = 0.5
+    beta = 0.5
+    return (0.25 * alpha .* (un.^2 .+ up.^2) .+ 0.5 * beta .* up .* un,)
+end
+
+function compute_two_pt_flux(up, un, tpflux::SplitTPFlux, PDE::Burgers)
+    return (0.25 * tpflux.alpha .* (un.^2 .+ up.^2) .+ 0.5 * tpflux.beta .* up .* un,)
+end
+
+
+# Euler two-point fluxes
+
+function compute_two_pt_flux(up, un, tpflux::ECChandrashekarTPFlux, PDE::EulerPerfGas)
+    return Euler_numflux_Chandrashekar(up, un, PDE)
+end
+
+
+# Assemble two-point fluxes
+
+function compute_two_pt_flux!(F::Union{Tuple{AbstractArray}, Tuple{AbstractArray, AbstractArray}}, u::AbstractMatrix, uf::AbstractMatrix, tpflux::TPFlux, PDE::GoverningPDE)
     M = size(u,1)
     Npts = size(F[1], 1)
 
@@ -110,37 +338,9 @@ function compute_two_pt_flux!(F::Union{Tuple{AbstractArray}, Tuple{AbstractArray
                 un = (@view u[i,:])
             end
 
-            if param.pdetype == "Burgers"
-                if param.twoptfluxtype == "EC_split"
-                    f = ((1/6) .* (un.^2 .+ up .* un .+ up.^2),)
-                elseif param.twoptfluxtype == "AV_split"
-                    alpha = 0.5
-                    beta = 0.5
-                    f = (0.25 * alpha .* (un.^2 .+ up.^2) .+ 0.5 * beta .* up .* un,)
-                elseif param.twoptfluxtype == "OQ_split"
-                    p = M-1
-                    alpha = (p+1) / (2*p+1)
-                    beta = p / (2*p+1)
-                    f = (0.25 * alpha .* (un.^2 .+ up.^2) .+ 0.5 * beta .* up .* un,)
-                elseif param.twoptfluxtype == "OB_split"
-                    p = M-1
-                    alpha = (4*p^3+p^2-2*p+1)/(8*p^3)
-                    beta = (4*p^3-p^2+2*p-1)/(8*p^3)
-                    f = (0.25 * alpha .* (un.^2 .+ up.^2) .+ 0.5 * beta .* up .* un,)
-                else
-                    error("Undefined two-point flux!")
-                end
-            elseif param.pdetype == "EulerPerfGas"
-                if param.twoptfluxtype == "EC_Chandrashekar"
-                    f = Euler_numflux_Chandrashekar(up, un, param)
-                else
-                    error("Undefined two-point flux!")
-                end
-            else
-                error("Unknown PDE type!")
-            end
+            f = compute_two_pt_flux(up, un, tpflux, PDE)
 
-            @inbounds for dir in 1:param.dim
+            @inbounds for dir in 1:PDE.dim
                 @views F[dir][i,j,:] = f[dir]
                 @views F[dir][j,i,:] = f[dir]
             end
@@ -150,80 +350,41 @@ function compute_two_pt_flux!(F::Union{Tuple{AbstractArray}, Tuple{AbstractArray
     return F
 end
 
-#####################################################################
-# Entropy mappings
-#####################################################################
-
-function compute_evar(u::AbstractMatrix, param::parameters)
-    if param.pdetype == "Burgers"
-        return u
-    elseif param.pdetype == "EulerPerfGas"
-        return Euler_evar(u, param)
-    end
-end
-
-function compute_cvar(v::AbstractMatrix, param::parameters)
-    if param.pdetype == "Burgers"
-        return v
-    elseif param.pdetype == "EulerPerfGas"
-        return Euler_cvar(v, param)
-    end
-end
-
-#####################################################################
-# Compute Entropy
-#####################################################################
-
-function compute_local_entropy(u::AbstractMatrix, param::parameters)
-    if param.pdetype == "LinAdv"
-        return 0.5 .* u.^2
-    elseif param.pdetype == "Burgers"
-        return 0.5 .* u.^2
-    elseif param.pdetype == "EulerPerfGas"
-        return -u[:,1] .* Euler_cvar_entropy(u, param)
-    end
-end
-
-#####################################################################
-# Compute Entropy Potentials
-#####################################################################
-
-function compute_cvar_potential(u::AbstractArray, param::parameters)
-    if param.pdetype == "Burgers"
-        return ((1/6) .* u.^3,)
-    elseif param.pdetype == "EulerPerfGas"
-        return Tuple((param.gamma-1) .* u[:,istate] for istate in 2:1+param.dim) # CAREFUL, MISTAKE IN (Chan, 2025)
-    end
-end
-
-#####################################################################
-# Compute Entropy Hessian
-#####################################################################
-
-function compute_cvar_Hessian(u::AbstractVector, param::parameters) # Operates on one node at the time.
-    if param.pdetype == "Burgers"
-        K = Matrix{Float64}(undef, 1, 1)
-        K[1,1] = 1.0
-        return K
-    elseif param.pdetype == "EulerPerfGas"
-        return Euler_cvar_Hessian(u, param)
-    end
-end
 
 #####################################################################
 # Artifical viscosity coefficient
 #####################################################################
 
-function AV_coeff(delta, den, param)
+abstract type ArtVisc end
+
+struct AVdissip <: ArtViscModel
+    addvisc::Union{Float64, Nothing}
+end
+
+struct AVEC <: ArtViscModel
+    addvisc::Union{Float64, Nothing}
+end
+
+struct NoAV <: ArtViscModel
+    addvisc::Union{Float64, Nothing}
+end
+
+function delta_clip(delta, artviscmodel::AVdissip)
+    return -min(0.0, delta)
+end
+
+function delta_clip(delta, artviscmodel::AVEC)
+    return -delta
+end
+
+function delta_clip(delta, artviscmodel::NoAV)
+    return 0.0
+end
+
+function AV_coeff(delta, den, artviscmodel)
     tol = 1e-14 # tolerance to avoid vanishing denominator
 
-    if param.AVcoeff == "AVdissip"
-        a = -min(0.0, delta)
-    elseif param.AVcoeff == "AVEC"
-        a = -delta
-    elseif param.AVcoeff == "NoAV"
-        a = 0.0
-    end
+    a = delta_clip(delta, artviscmodel)
 
     # Clip entropy deficit to avoid error leakage
     if abs(a) < 2.5e-15
@@ -234,95 +395,120 @@ function AV_coeff(delta, den, param)
         println("Careful, visc denominator < 1e-12!")
     end
 
-    if isnothing(param.addviscosity)
+    if isnothing(artviscmodel.addvisc)
         return a * den / (tol + den^2)
     else
-        return a * den / (tol + den^2) + param.addviscosity
+        return a * den / (tol + den^2) + artviscmodel.addvisc
     end
-
 end
+
+
+#####################################################################
+# Residual corrections
+#####################################################################
+
+abstract type ResCorrModel end
+
+struct ResCorrEC <: ResCorrModel end
+
+struct ResCorrDissip <: ResCorrModel end
+
+struct NoResCorr <: ResCorrModel end
+
+function delta_clip(delta, rescorr::ResCorrEC)
+    return delta
+end
+
+function delta_clip(delta, rescorr::ResCorrDissip)
+    return min(delta, 0)
+end
+
+function delta_clip(delta, rescorr::NoResCorr)
+    return 0
+end
+
 
 #####################################################################
 # Euler helper functions
 #####################################################################
 
 # (\rho * e)(u)
-function Euler_cvar_intenergy(u::AbstractMatrix, param::parameters)
-    if param.dim == 1
+function Euler_cvar_intenergy(u::AbstractMatrix, PDE::EulerPerfGas)
+    if PDE.dim == 1
         return u[:,end] .- 0.5 .* u[:,2].^2 ./ u[:,1]
-    elseif param.dim == 2
-        return u[:,end] .- 0.5 .* (u[:,2].^2 .+ u[3,:].^2) ./ u[1,:]
+    elseif PDE.dim == 2
+        return u[:,end] .- 0.5 .* (u[:,2].^2 .+ u[:,3].^2) ./ u[:,1]
     end
 end
 
 
-function Euler_cvar_intenergy(u::AbstractVector, param::parameters)
-    if param.dim == 1
+function Euler_cvar_intenergy(u::AbstractVector, PDE::EulerPerfGas)
+    if PDE.dim == 1
         return u[end] - 0.5 * u[2]^2 / u[1]
-    elseif param.dim == 2
+    elseif PDE.dim == 2
         return u[end] - 0.5 * (u[2]^2 + u[3]^2) / u[1]
     end
 end
 
 
 # (\rho * e)(v)
-function Euler_evar_intenergy(v::AbstractMatrix, param::parameters)
-    return ((param.gamma-1) ./ (-v[:,end]).^param.gamma).^(1/(param.gamma-1)) .* exp.(-Euler_evar_entropy(v,param) ./ (param.gamma-1))
+function Euler_evar_intenergy(v::AbstractMatrix, PDE::EulerPerfGas)
+    return ((PDE.gamma-1) ./ (-v[:,end]).^PDE.gamma).^(1/(PDE.gamma-1)) .* exp.(-Euler_evar_entropy(v,PDE) ./ (PDE.gamma-1))
 end
 
-function Euler_evar_intenergy(v::AbstractVector, param::parameters)
-    return ((param.gamma-1) / (-v[end])^param.gamma)^(1/(param.gamma-1)) * exp(-Euler_evar_entropy(v,param) / (param.gamma-1))
+function Euler_evar_intenergy(v::AbstractVector, PDE::EulerPerfGas)
+    return ((PDE.gamma-1) / (-v[end])^PDE.gamma)^(1/(PDE.gamma-1)) * exp(-Euler_evar_entropy(v,PDE) / (PDE.gamma-1))
 end
 
 
 # (s / cv)(u)
-function Euler_cvar_entropy(u::AbstractMatrix, param::parameters)
-    return log.(Euler_pressure(u, param) ./ u[:,1].^param.gamma)
+function Euler_cvar_entropy(u::AbstractMatrix, PDE::EulerPerfGas)
+    return log.(Euler_pressure(u, PDE) ./ u[:,1].^PDE.gamma)
 end
 
-function Euler_cvar_entropy(u::AbstractVector, param::parameters)
-    return log(Euler_pressure(u, param) / u[1]^param.gamma)
+function Euler_cvar_entropy(u::AbstractVector, PDE::EulerPerfGas)
+    return log(Euler_pressure(u, PDE) / u[1]^PDE.gamma)
 end
 
 
 # (s / cv)(v)
-function Euler_evar_entropy(v::AbstractMatrix, param::parameters)
-    if param.dim == 1
-        return param.gamma .- v[:,1] .+ 0.5 .* v[:,2].^2 ./ v[:,end]
-    elseif param.dim == 2
-        return param.gamma .- v[:,1] .+ 0.5 .* (v[:,2].^2 .+ v[:,3].^2) ./ v[:,end]
+function Euler_evar_entropy(v::AbstractMatrix, PDE::EulerPerfGas)
+    if PDE.dim == 1
+        return PDE.gamma .- v[:,1] .+ 0.5 .* v[:,2].^2 ./ v[:,end]
+    elseif PDE.dim == 2
+        return PDE.gamma .- v[:,1] .+ 0.5 .* (v[:,2].^2 .+ v[:,3].^2) ./ v[:,end]
     end
 end
 
-function Euler_evar_entropy(v::AbstractVector, param::parameters)
-    if param.dim == 1
-        return param.gamma - v[1] + 0.5 * v[2]^2 / v[end]
-    elseif param.dim == 2
-        return param.gamma - v[1] + 0.5 * (v[2]^2 + v[3]^2) ./ v[end]
+function Euler_evar_entropy(v::AbstractVector, PDE::EulerPerfGas)
+    if PDE.dim == 1
+        return PDE.gamma - v[1] + 0.5 * v[2]^2 / v[end]
+    elseif PDE.dim == 2
+        return PDE.gamma - v[1] + 0.5 * (v[2]^2 + v[3]^2) ./ v[end]
     end
 end
 
 
 # v(u)
-function Euler_evar(u::AbstractMatrix, param::parameters)
-    rhoe = Euler_cvar_intenergy(u,param)
-    s = Euler_cvar_entropy(u, param)
+function Euler_evar(u::AbstractMatrix, PDE::EulerPerfGas)
+    rhoe = Euler_cvar_intenergy(u,PDE)
+    s = Euler_cvar_entropy(u, PDE)
 
     v = Array{eltype(u)}(undef, size(u)...)
-    @views v[:,1] .= (-s .+ param.gamma .+ 1) .- u[:,end] ./ rhoe
-    @views v[:,2:1+param.dim] .= u[:,2:1+param.dim] ./ rhoe
+    @views v[:,1] .= (-s .+ PDE.gamma .+ 1) .- u[:,end] ./ rhoe
+    @views v[:,2:1+PDE.dim] .= u[:,2:1+PDE.dim] ./ rhoe
     @views v[:,end] .= -u[:,1] ./ rhoe
 
     return v
 end
 
-function Euler_evar(u::AbstractVector, param::parameters)
-    rhoe = Euler_cvar_intenergy(u,param)
-    s = Euler_cvar_entropy(u, param)
+function Euler_evar(u::AbstractVector, PDE::EulerPerfGas)
+    rhoe = Euler_cvar_intenergy(u,PDE)
+    s = Euler_cvar_entropy(u, PDE)
 
-    v = Vector{eltype(u)}(undef, param.dim+2)
-    v[1] = (-s + param.gamma + 1) - u[end] / rhoe
-    v[2:1+param.dim] .= u[2:1+param.dim] ./ rhoe
+    v = Vector{eltype(u)}(undef, PDE.dim+2)
+    v[1] = (-s + PDE.gamma + 1) - u[end] / rhoe
+    v[2:1+PDE.dim] .= u[2:1+PDE.dim] ./ rhoe
     v[end] = -u[1] / rhoe
 
     return v
@@ -330,51 +516,51 @@ end
 
 
 # u(v)
-function Euler_cvar(v::AbstractMatrix, param::parameters)
-    rhoe = Euler_evar_intenergy(v, param)
+function Euler_cvar(v::AbstractMatrix, PDE::EulerPerfGas)
+    rhoe = Euler_evar_intenergy(v, PDE)
 
     u = Array{eltype(v)}(undef, size(v)...)
     @views u[:,1] .= -rhoe .* v[:,end]
-    @views u[:,2:1+param.dim] .= v[:,2:1+param.dim] .* rhoe
-    @views u[:,end] .= rhoe .* (1 .- 0.5 .* sum(v[:,2:1+param.dim].^2, dims=2) ./  v[:,end])
+    @views u[:,2:1+PDE.dim] .= v[:,2:1+PDE.dim] .* rhoe
+    @views u[:,end] .= rhoe .* (1 .- 0.5 .* sum(v[:,2:1+PDE.dim].^2, dims=2) ./  v[:,end])
 
     return u
 end
 
-function Euler_cvar(v::AbstractVector, param::parameters)
-    rhoe = Euler_evar_intenergy(v, param)
+function Euler_cvar(v::AbstractVector, PDE::EulerPerfGas)
+    rhoe = Euler_evar_intenergy(v, PDE)
 
-    u = Vector{eltype(v)}(undef, param.dim+2)
+    u = Vector{eltype(v)}(undef, PDE.dim+2)
     u[1] = -rhoe * v[end]
-    @views u[2:1+param.dim] .= v[2:1+param.dim] .* rhoe
-    u[end] = rhoe * (1 - 0.5 * sum(v[2:1+param.dim].^2) /  v[end])
+    @views u[2:1+PDE.dim] .= v[2:1+PDE.dim] .* rhoe
+    u[end] = rhoe * (1 - 0.5 * sum(v[2:1+PDE.dim].^2) /  v[end])
 
     return u
 end
 
 
 # p(u)
-function Euler_pressure(u::AbstractMatrix, param::parameters)
-    return (param.gamma - 1) .* Euler_cvar_intenergy(u, param)
+function Euler_pressure(u::AbstractMatrix, PDE::EulerPerfGas)
+    return (PDE.gamma - 1) .* Euler_cvar_intenergy(u, PDE)
 end
 
-function Euler_pressure(u::AbstractVector, param::parameters)
-    return (param.gamma - 1) * Euler_cvar_intenergy(u, param)
+function Euler_pressure(u::AbstractVector, PDE::EulerPerfGas)
+    return (PDE.gamma - 1) * Euler_cvar_intenergy(u, PDE)
 end
 
 
 # (\partial u / \partial v)(u)
-function Euler_cvar_Hessian(u::AbstractVector, param::parameters) # copied from (Chan, 2025)
-    if param.dim == 1
+function Euler_cvar_Hessian(u::AbstractVector, PDE::EulerPerfGas) # copied from (Chan, 2025)
+    if PDE.dim == 1
         K = Matrix{eltype(u)}(undef,3,3)
 
-        p = Euler_pressure(u, param)
-        a2 = param.gamma * Euler_pressure(u, param) / u[1]
+        p = Euler_pressure(u, PDE)
+        a2 = PDE.gamma * Euler_pressure(u, PDE) / u[1]
 
         K[1,:] = u
         K[2,2] = u[2]^2 / u[1] + p
         K[2,3] = u[2] / u[1] * (u[end] + p)
-        K[3,3] = u[1] * (a2 / (param.gamma-1) + 0.5 * u[2]^2 / u[1])^2 - a2 * p / (param.gamma - 1)
+        K[3,3] = u[1] * (a2 / (PDE.gamma-1) + 0.5 * u[2]^2 / u[1])^2 - a2 * p / (PDE.gamma - 1)
 
         copyto!(K, Symmetric(K, :U)) # symmetrize
 
@@ -400,18 +586,18 @@ end
 
 
 # f_dir
-function Euler_physflux(u::AbstractMatrix, param::parameters)
-    p = Euler_pressure(u, param)
+function Euler_physflux(u::AbstractMatrix, PDE::EulerPerfGas)
+    p = Euler_pressure(u, PDE)
 
     f1 = Array{eltype(u)}(undef, size(u)...)
     @views f1[:,1] .= u[:,2]
-    @views f1[:,2:param.dim+1] .=  u[:,2:param.dim+1] .* u[:,2] ./  u[:,1]
+    @views f1[:,2:PDE.dim+1] .=  u[:,2:PDE.dim+1] .* u[:,2] ./  u[:,1]
     @views f1[:,2] .= f1[:,2] .+ p
     @views f1[:,end] .= (p .+  u[:,end]) .* (u[:,2]./ u[:,1])
 
-    if param.dim == 1
+    if PDE.dim == 1
         return (f1,)
-    elseif param.dim == 2
+    elseif PDE.dim == 2
         f2 = Array{eltype(u)}(undef, size(u)...)
         @views f2[:,1] .= u[3,:]
         @views f2[:,2] .= f1[:,3]
@@ -422,19 +608,19 @@ function Euler_physflux(u::AbstractMatrix, param::parameters)
     end
 end
 
-function Euler_physflux(u::AbstractVector, param::parameters)
-    p = Euler_pressure(u, param)
+function Euler_physflux(u::AbstractVector, PDE::EulerPerfGas)
+    p = Euler_pressure(u, PDE)
 
-    f1 = Vector{eltype(u)}(undef, param.dim+2)
+    f1 = Vector{eltype(u)}(undef, PDE.dim+2)
     f1[1] = u[2]
-    @views f1[2:param.dim+1] .=  u[2:param.dim+1] .* u[2] ./  u[1]
+    @views f1[2:PDE.dim+1] .=  u[2:PDE.dim+1] .* u[2] ./  u[1]
     f1[2] = f1[2] + p
     f1[end] = (p + u[end]) * u[2] / u[1]
 
-    if param.dim == 1
+    if PDE.dim == 1
         return (f1,)
-    elseif param.dim == 2
-        f2 = Vector{eltype(u)}(undef, param.dim+2)
+    elseif PDE.dim == 2
+        f2 = Vector{eltype(u)}(undef, PDE.dim+2)
         f2[1] = u[3]
         f2[2] = f1[3]
         f2[3] = u[3]^2 /  u[1] + p
@@ -447,20 +633,20 @@ end
 
 
 # Numerical fluxes, ONLY FOR 1D right now
-function Euler_numflux_Chandrashekar(un::AbstractMatrix, up::AbstractMatrix, param::parameters) # copied from (Chan 2018)
-    if param.dim == 1
+function Euler_numflux_Chandrashekar(un::AbstractMatrix, up::AbstractMatrix, PDE::EulerPerfGas) # copied from (Chan 2018)
+    if PDE.dim == 1
         f1 = Array{eltype(up)}(undef, size(up)...)
 
-        @views velp = up[:,2:param.dim+1] ./ up[:,1]
-        @views veln = un[:,2:param.dim+1] ./ un[:,1]
+        @views velp = up[:,2:PDE.dim+1] ./ up[:,1]
+        @views veln = un[:,2:PDE.dim+1] ./ un[:,1]
         velavg = 0.5 .* (velp .+ veln)
 
-        @views betap = 0.5 .* up[:,1] ./ Euler_pressure(up, param)
-        @views betan = 0.5 .* un[:,1] ./ Euler_pressure(un, param)
+        @views betap = 0.5 .* up[:,1] ./ Euler_pressure(up, PDE)
+        @views betan = 0.5 .* un[:,1] ./ Euler_pressure(un, PDE)
 
         @views @. f1[:,1] = logmean(up[:,1], un[:,1]) * velavg[:,1]
         @views @. f1[:,2] = 0.5 * (up[:,1] + un[:,1]) / (betap + betan) + velavg * f1[:,1]
-        @views @. f1[:,3] = f1[:,1] * (0.5 / (param.gamma-1) / logmean(betan,betap) - 0.25 * (velp^2 + veln^2)) + velavg * f1[:,2]
+        @views @. f1[:,3] = f1[:,1] * (0.5 / (PDE.gamma-1) / logmean(betan,betap) - 0.25 * (velp^2 + veln^2)) + velavg * f1[:,2]
 
         return (f1,)
     else
@@ -468,20 +654,20 @@ function Euler_numflux_Chandrashekar(un::AbstractMatrix, up::AbstractMatrix, par
     end
 end
 
-function Euler_numflux_Chandrashekar(un::AbstractVector, up::AbstractVector, param::parameters)
-    if param.dim == 1
+function Euler_numflux_Chandrashekar(un::AbstractVector, up::AbstractVector, PDE::EulerPerfGas) # copied from (Chan 2018)
+    if PDE.dim == 1
         f1 = Vector{eltype(up)}(undef, 3)
 
         velp = up[2] / up[1]
         veln = un[2] / un[1]
         velavg = 0.5 * (velp + veln)
 
-        betap = 0.5 * up[1] / Euler_pressure(up, param)
-        betan = 0.5 * un[1] / Euler_pressure(un, param)
+        betap = 0.5 * up[1] / Euler_pressure(up, PDE)
+        betan = 0.5 * un[1] / Euler_pressure(un, PDE)
 
         f1[1] = logmean(up[1], un[1]) * velavg[1]
         f1[2] = 0.5 * (up[1] + un[1]) / (betap + betan) + velavg * f1[1]
-        f1[3] = f1[1] * (0.5 / (param.gamma-1) / logmean(betan,betap) - 0.25 * (velp^2 + veln^2)) + velavg * f1[2]
+        f1[3] = f1[1] * (0.5 / (PDE.gamma-1) / logmean(betan,betap) - 0.25 * (velp^2 + veln^2)) + velavg * f1[2]
 
         return (f1,)
     else
@@ -490,11 +676,11 @@ function Euler_numflux_Chandrashekar(un::AbstractVector, up::AbstractVector, par
 end
 
 
-function Euler_numdissip_ES(un::AbstractMatrix, up::AbstractArray, nphys::AbstractMatrix, param::parameters) # copied from (Gassner, Kopriva, Winters, Hindenlang, 2018)
-    if param.dim == 1
+function Euler_numdissip_ES(un::AbstractMatrix, up::AbstractMatrix, nphys::AbstractMatrix, PDE::EulerPerfGas) # copied from (Gassner, Kopriva, Winters, Hindenlang, 2018)
+    if PDE.dim == 1
         d1 = Array{eltype(up)}(undef, size(up)...)
 
-        wjump = (Euler_evar(up, param) - Euler_evar(un, param)) .* nphys # WOULD BE MUCH MORE EFFICIENT IF WE COULD USE THE ENTROPY VARS AS INPUT
+        wjump = (Euler_evar(up, PDE) - Euler_evar(un, PDE)) .* nphys # WOULD BE MUCH MORE EFFICIENT IF WE COULD USE THE ENTROPY VARS AS INPUT
 
         # We iterate to find the diffusion term (too expensive to do in omne shot)
         R = [1.0 1.0 1.0; 0 0 0 ; 0 0 0] # prealloc for R
@@ -505,20 +691,20 @@ function Euler_numdissip_ES(un::AbstractMatrix, up::AbstractArray, nphys::Abstra
             velavg = 0.5 * (velp + veln)
             vel2avg = 2 * velavg^2 - 0.5 * (veln^2 + veln^2)
 
-            pn = Euler_pressure(up[index,:], param)
-            pp = Euler_pressure(un[index,:], param)
+            pn = Euler_pressure(up[index,:], PDE)
+            pp = Euler_pressure(un[index,:], PDE)
 
             rholn = logmean(up[index,1], un[index,1])
             betaln = logmean(0.5 * up[index,1] / pn, 0.5 * un[index,1] / pp)
 
-            abar = sqrt(0.5 * param.gamma * (pn + pp)/rholn)
-            hbar = param.gamma/(2.0*betaln*(param.gamma-1.0)) + 0.5 * vel2avg
+            abar = sqrt(0.5 * PDE.gamma * (pn + pp)/rholn)
+            hbar = PDE.gamma/(2.0*betaln*(PDE.gamma-1.0)) + 0.5 * vel2avg
 
             R[2,1] = velavg - abar ; R[2,2] = velavg ; R[2,3] = velavg + abar
             R[3,1] = hbar - velavg*abar ; R[3,2] = 0.5*vel2avg ; R[3,3] = hbar + velavg * abar
 
             Lambda = abs.([velavg - abar, velavg, velavg + abar])
-            T = [rholn/2.0/param.gamma, rholn * (param.gamma-1.0)/param.gamma, rholn/2.0/param.gamma]
+            T = [rholn/2.0/PDE.gamma, rholn * (PDE.gamma-1.0)/PDE.gamma, rholn/2.0/PDE.gamma]
 
             d1[index,:] = -0.5 * R * Diagonal(Lambda) * Diagonal(T) * R' * wjump[index,:]
         end
@@ -529,31 +715,32 @@ function Euler_numdissip_ES(un::AbstractMatrix, up::AbstractArray, nphys::Abstra
     end
 end
 
-function Euler_numdissip_ES(un::AbstractVector, up::AbstractVector, nphys::AbstractVector, param::parameters) # copied from (Chan 2018)
-    if param.dim == 1
 
-        wjump = (Euler_evar(up, param) - Euler_evar(un, param)) .* nphys[1] # WOULD BE MUCH MORE EFFICIENT IF WE COULD USE THE ENTROPY VARS AS INPUT
+function Euler_numdissip_ES(un::AbstractVector, up::AbstractVector, nphys::AbstractVector, PDE::EulerPerfGas) # copied from (Chan 2018)
+    if PDE.dim == 1
+
+        wjump = (Euler_evar(up, PDE) - Euler_evar(un, PDE)) .* nphys[1] # WOULD BE MUCH MORE EFFICIENT IF WE COULD USE THE ENTROPY VARS AS INPUT
 
         velp = up[2] ./ up[1]
         veln = un[2] ./ un[1]
         velavg = 0.5 * (velp + veln)
         vel2avg = 2 * velavg^2 - 0.5 * (veln^2 + veln^2)
 
-        pn = Euler_pressure(up, param)
-        pp = Euler_pressure(un, param)
+        pn = Euler_pressure(up, PDE)
+        pp = Euler_pressure(un, PDE)
 
         rholn = logmean(up[1], un[1])
         betaln = logmean(0.5 * up[1] / pn, 0.5 * un[1] / pp)
 
-        abar = sqrt(0.5 * param.gamma * (pn + pp)/rholn)
-        hbar = param.gamma/(2.0*betaln*(param.gamma-1.0)) + 0.5 * vel2avg
+        abar = sqrt(0.5 * PDE.gamma * (pn + pp)/rholn)
+        hbar = PDE.gamma/(2.0*betaln*(PDE.gamma-1.0)) + 0.5 * vel2avg
 
         R = [1.0 1.0 1.0;
              velavg - abar velavg velavg + abar ;
              hbar - velavg*abar 0.5*vel2avg hbar + velavg * abar]
 
         Lambda = abs.([velavg - abar, velavg, velavg + abar])
-        T = [rholn/2.0/param.gamma, rholn * (param.gamma-1.0)/param.gamma, rholn/2.0/param.gamma]
+        T = [rholn/2.0/PDE.gamma, rholn * (PDE.gamma-1.0)/PDE.gamma, rholn/2.0/PDE.gamma]
 
         d1 = -0.5 * R * Diagonal(Lambda) * Diagonal(T) * R' * wjump
 

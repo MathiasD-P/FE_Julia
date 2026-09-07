@@ -2,11 +2,11 @@
 # Assemble residual for different DG flavours
 #####################################################################
 
-function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandler::Dict, dg::DGStd, param::parameters) where {T<:Real}
+function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandler::Dict, dg::DGStd, physics::PhysProp) where {T<:Real}
     # For a linear mesh, we can simplify the computation
     if dg.mesh isa LMesh
         # We compute the projected reference flux
-        flux = compute_physflux(block_matmul(dg.refelem.chiq, u, dg.mesh.Nel), param)
+        flux = compute_physflux(block_matmul(dg.refelem.chiq, u, dg.mesh.Nel), physics.PDE)
         flux_to_ref!(flux, dg.refelem.Nqnodes, dg)
         flux = Tuple(block_matmul(dg.refelem.Ph, flux[dir], dg.mesh.Nel) for dir in 1:dg.dim)
 
@@ -16,7 +16,7 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
         # Finally, we evaluate numflux
         un = block_matmul(dg.refelem.chif, u, dg.mesh.Nel)
         up = dg.FtoF * un + evaluate_BC(BChandler, dg, t)
-        numflux = compute_numflux(un, up, dg.nphys, param)
+        numflux = compute_numflux(un, up, dg.nphys, physics.numflux, physics.PDE)
         flux_to_ref!(numflux, dg.refelem.Nfnodes, dg)
 
         # Assemble complete residual (volume and face)
@@ -32,24 +32,24 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
         end
 
         # Add source (if applicable)
-        if !(isnothing(param.sourcename))
-            residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(dg, param, dg.qpts, t), dg.mesh.Nel)
+        if !(isnothing(physics.source))
+            residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(dg, physics.source, dg.qpts, t), dg.mesh.Nel)
         end
 
         return residual
     end
 end
 
-function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandler::Dict, dg::DGFluxDiff, param::parameters) where {T<:Real}
+function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandler::Dict, dg::DGFluxDiff, physics::PhysProp) where {T<:Real}
     if dg.mesh isa LMesh
         # We start by computing the entropy-projected solution (volume and face)
-        v = compute_evar(block_matmul(dg.refelem.chiq, u, dg.mesh.Nel), param) # Compute entropy variables at vol quadrature points
+        v = compute_evar(block_matmul(dg.refelem.chiq, u, dg.mesh.Nel), physics.PDE) # Compute entropy variables at vol quadrature points
         v = block_matmul(dg.refelem.Ph, v, dg.mesh.Nel) # Project entropy variables
         vq = block_matmul(dg.refelem.chiq, v, dg.mesh.Nel) # evaluate at vol quadrature
         vf = block_matmul(dg.refelem.chif, v, dg.mesh.Nel)
 
-        uq = compute_cvar(vq, param)
-        un = compute_cvar(vf, param)
+        uq = compute_cvar(vq, physics.PDE)
+        un = compute_cvar(vf, physics.PDE)
 
         up = dg.FtoF * un + evaluate_BC(BChandler, dg, t)
 
@@ -59,7 +59,7 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
         # Volume terms
         Npts = dg.refelem.Nfnodes*dg.refelem.Nfaces + dg.refelem.Nqnodes # number of 2-pt flux pts
         F = Tuple(Array{eltype(u)}(undef, Npts, Npts, dg.Nstates) for dir in 1:dg.dim)
-        @inbounds for dir in 1:param.dim # Allocate diagonals with zeros (don't need them since Hadamard prod with Skew-symmetric)
+        @inbounds for dir in 1:physics.PDE.dim # Allocate diagonals with zeros (don't need them since Hadamard prod with Skew-symmetric)
             for j in 1:Npts
                 F[dir][j,j,:] .= 0.0
             end
@@ -73,7 +73,7 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
             uv = @view uq[indexv,:]
             uf = @view un[indexf,:]
 
-            F = compute_two_pt_flux!(F, uv, uf, param) # in place computation two-point flux matrix
+            F = compute_two_pt_flux!(F, uv, uf, physics.tpflux, physics.PDE) # in place computation two-point flux matrix
             two_pt_flux_to_ref!(F, ielem, dg)
 
             for dir in 1:dg.dim
@@ -82,7 +82,7 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
         end
 
         # Surface term
-        numflux = compute_numflux(un, up, dg.nphys, param)
+        numflux = compute_numflux(un, up, dg.nphys, physics.numflux, physics.PDE)
         flux_to_ref!(numflux, dg.refelem.Nqnodes, dg)
         for dir in 1:dg.dim
             @views residual .= residual .- block_matmul((dg.refelem.LIFT[dir]), numflux[dir], dg.mesh.Nel)
@@ -95,15 +95,15 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
         end
 
         # Add source (if applicable)
-        if !(isnothing(param.sourcename))
-            residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(dg, param, dg.qpts, t), dg.mesh.Nel)
+        if !(isnothing(physics.source))
+            residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(dg, physics.source, dg.qpts, t), dg.mesh.Nel)
         end
 
         return residual
     end
 end
 
-function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandler::Dict, dg::DGArtVisc, param::parameters, debug=false) where {T<:Real}
+function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandler::Dict, dg::DGArtVisc, physics::PhysProp, debug=false) where {T<:Real}
     # If the user wants to know the values for the entropy deficit and artificial viscosity..
     if debug
         debug_data = Dict("delta" => Vector{Float64}(undef, dg.mesh.Nel), "visc" => Vector{Float64}(undef, dg.mesh.Nel), "den" => Vector{Float64}(undef, dg.mesh.Nel))
@@ -112,13 +112,13 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
     if dg.mesh isa LMesh
         # We start by computing the projected entropy variables and we evaluate face quantities
         uq = block_matmul(dg.refelem.chiq, u, dg.mesh.Nel)
-        v = compute_evar(uq, param)
+        v = compute_evar(uq, physics.PDE)
         v = block_matmul(dg.refelem.Ph, v, dg.mesh.Nel)
 
         vn = block_matmul(dg.refelem.chif, v, dg.mesh.Nel)
-        un = compute_cvar(vn, param)
+        un = compute_cvar(vn, physics.PDE)
         up = dg.FtoF * un + evaluate_BC(BChandler, dg, t)
-        vp = compute_evar(up, param) # FIX FOR BOUNDARY CONDITIONS!
+        vp = compute_evar(up, physics.PDE) # FIX FOR BOUNDARY CONDITIONS!
 
         # FIRST AUXILIARY PROBLEM
         theta = AV_auxiliary1(v, vn, vp, dg)
@@ -128,7 +128,7 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
         thetaK = Tuple(Matrix{eltype(u)}(undef, dg.mesh.Nel*dg.refelem.Nqnodes, dg.Nstates) for dir in 1:dg.dim)
 
         for iqnode in 1:dg.mesh.Nel*dg.refelem.Nqnodes
-            K = compute_cvar_Hessian(uq[iqnode,:], param)
+            K = compute_cvar_Hessian(uq[iqnode,:], physics.PDE)
             for dir in 1:dg.dim
                 @views thetaK[dir][iqnode,:] .= K * thetaq[dir][iqnode,:]
             end
@@ -136,7 +136,7 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
         thetaK = Tuple(block_matmul(dg.refelem.Ph, thetaK[dir], dg.mesh.Nel) for dir in 1:dg.dim)
 
         # We compute the projected reference flux (we'll need it a few times)
-        flux = compute_physflux(uq, param)
+        flux = compute_physflux(uq, physics.PDE)
         flux_to_ref!(flux, dg.refelem.Nqnodes, dg)
         flux = Tuple(block_matmul(dg.refelem.Ph, flux[dir], dg.mesh.Nel) for dir in 1:dg.dim)
 
@@ -147,7 +147,7 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
             indexb = 1+dg.refelem.Nbnodes*(ielem-1):dg.refelem.Nbnodes*ielem
 
             # Elemental entropy deficit
-            @views psi = compute_cvar_potential(un[indexf,:], param)
+            @views psi = compute_cvar_potential(un[indexf,:], physics.PDE)
             flux_to_ref!(psi, dg.refelem.Nfnodes, dg)
 
             delta = 0.0
@@ -166,7 +166,7 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
             den *= dg.mesh.detJ[ielem] # scale by Jacobian
 
             # Artifical viscosity coefficient
-            epsilon = AV_coeff(delta, den, param)
+            epsilon = AV_coeff(delta, den, physics.artvisc)
 
             # We finally build the viscous entropy fluxes
             for dir in 1:dg.dim
@@ -187,7 +187,7 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
         gvisc = AV_auxiliary2(sigma, sigman, sigmap, dg)
 
         # PRIMARY PROBLEM
-        numflux = compute_numflux(un, up, dg.nphys, param)
+        numflux = compute_numflux(un, up, dg.nphys, physics.numflux, physics.PDE)
         flux_to_ref!(numflux, dg.refelem.Nfnodes, dg)
 
         residual .= 0.0
@@ -205,8 +205,8 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
         end
         
         # Add source (if applicable)
-        if !(isnothing(param.sourcename))
-            residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(dg, param, dg.qpts, t), dg.mesh.Nel)
+        if !(isnothing(physics.source))
+            residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(dg, physics.source, dg.qpts, t), dg.mesh.Nel)
         end
 
         if debug
@@ -217,19 +217,19 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
     end
 end
 
-function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandler::Dict, dg::DGAddRes, param::parameters) where {T<:Real}
+function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandler::Dict, dg::DGAddRes, physics::PhysProp) where {T<:Real}
     if dg.mesh isa LMesh
         # We start by computing the projected entropy variables and we evaluate face quantities
         uq = block_matmul(dg.refelem.chiq, u, dg.mesh.Nel)
-        v = compute_evar(uq, param)
+        v = compute_evar(uq, physics.PDE)
         v = block_matmul(dg.refelem.Ph, v, dg.mesh.Nel)
 
         vn = block_matmul(dg.refelem.chif, v, dg.mesh.Nel)
-        un = compute_cvar(vn, param)
+        un = compute_cvar(vn, physics.PDE)
         up = dg.FtoF * un + evaluate_BC(BChandler, dg, t)
 
         # We compute the projected reference flux (we'll need it a few times)
-        flux = compute_physflux(uq, param)
+        flux = compute_physflux(uq, physics.PDE)
         flux_to_ref!(flux, dg.refelem.Nqnodes, dg)
         flux = Tuple(block_matmul(dg.refelem.Ph, flux[dir], dg.mesh.Nel) for dir in 1:dg.dim)
 
@@ -240,7 +240,7 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
             indexb = 1+dg.refelem.Nbnodes*(ielem-1):dg.refelem.Nbnodes*ielem
 
             # Elemental entropy deficit
-            @views psi = compute_cvar_potential(un[indexf,:], param)
+            @views psi = compute_cvar_potential(un[indexf,:], physics.PDE)
             flux_to_ref!(psi, dg.refelem.Nfnodes, dg)
 
             delta = 0.0
@@ -251,13 +251,7 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
                 @views delta += dot(dg.refelem.bh[dir], psi[dir])
             end
 
-            if param.Rescorr == "Rescorrdissip"
-                delta = min(delta, 0)
-            elseif param.Rescorr == "NoRescorr"
-                delta = 0.0
-            elseif param.Rescorr != "RescorrEC"
-                error("Invalid residual correction setting!")
-            end
+            delta = delta_clip(delta, physics.rescorr)
 
             # Consistent local entropy correction (WE HAVEN'T DIVIDED BY JACOBIAN YET!)
             Mv = dg.refelem.M * v[indexb, :]
@@ -275,7 +269,7 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
 
         # We then just proceed with usual strong DG
         fluxface = Tuple(block_matmul(dg.refelem.chif, flux[dir], dg.mesh.Nel) for dir in 1:dg.dim)
-        numflux = compute_numflux(un, up, dg.nphys, param)
+        numflux = compute_numflux(un, up, dg.nphys, physics.numflux, physics.PDE)
         flux_to_ref!(numflux, dg.refelem.Nfnodes, dg)
 
         # Assemble complete residual (volume and face)
@@ -290,15 +284,15 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
         end
 
         # Add source (if applicable)
-        if !(isnothing(param.sourcename))
-            residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(dg, param, dg.qpts, t), dg.mesh.Nel)
+        if !(isnothing(physics.source))
+            residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(dg, physics.source, dg.qpts, t), dg.mesh.Nel)
         end
 
         return residual
     end
 end
 
-function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandler::Dict, dg::DGEntFilt, param::parameters) where {T<:Real}
+function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandler::Dict, dg::DGEntFilt, physics::PhysProp) where {T<:Real}
 end
 
 #####################################################################
