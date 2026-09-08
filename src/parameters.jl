@@ -155,7 +155,74 @@ function parse_parameters_numflux(param::parameters)
     else
         error("The numerical flux $(param.numfluxtype) is not defined.")
     end
+
+    return numflux
 end
 
 function parse_parameters_tpflux(param::parameters)
+    if param.twoptfluxtype == "EC_split"
+        tpflux = ECSplitTPFlux()
+    elseif param.twoptfluxtype == "AV_split"
+        tpflux = AVSplitTPFlux()
+    elseif param.twoptfluxtype == "OGL_split"
+        if occursin(r"^\(.*\)-.*$", param.qnodes) # Check if this is the name of a tensor prod node
+            m = match(r"\((.*)\)-(.*)", param.qnodes)
+            q = parse.(Int, split(m.captures[1], 'x')) - 1
+        else
+            error("Cannot create an OGL split two poin flux from the specified quadrature node name!")
+        end
+        alpha = (q+3) / (2*q+3)
+        beta = q / (2*q+3)
+        tpflux = SplitTPFlux(alpha, beta)
+    elseif param.twoptfluxtype == "OGLL_split"
+        if occursin(r"^\(.*\)-.*$", param.qnodes) # Check if this is the name of a tensor prod node
+            m = match(r"\((.*)\)-(.*)", param.qnodes)
+            q = parse.(Int, split(m.captures[1], 'x')) - 1
+        else
+            error("Cannot create an OGLL split two poin flux from the specified quadrature node name!")
+        end
+        alpha = (q+1) / (2*q+1)
+        beta = q / (2*q+1)
+        tpflux = SplitTPFlux(alpha, beta)
+    else
+        error("The two point flux $(param.twoptfluxtype) is not defined.")
+    end
+
+    return tpflux
+end
+
+function parse_parameters_artvisc(param::parameters)
+    if param.dgtype != "DGArtVisc"
+        println("Warning: You are using the artificial viscosity parameter parser for a non-compatible DG type!")
+    end
+
+    if param.AVcoeff == "AVdissip"
+        artviscmodel = AVdissip(param.addviscosity)
+    elseif param.AVcoeff == "AVEC"
+        artviscmodel = AVEC(param.addviscosity)
+    elseif param.AVcoeff == "NoAV"
+        artviscmodel = NoAV(param.addviscosity)
+    else
+        error("The artificial viscosity model $(param.AVcoeff) is not defined.")
+    end
+
+    return artviscmodel
+end
+
+function parse_parameters_rescorr(param::parameters)
+    if param.dgtype != "DGAddRes"
+        println("Warning: You are using the residual correction parameter parser for a non-compatible DG type!")
+    end
+
+    if param.Rescorr == "Rescorrdissip"
+        rescorrmodel = ResCorrDissip()
+    elseif param.Rescorr == "RescorrEC"
+        rescorrmodel = ResCorrEC()
+    elseif param.Rescorr == "NoRescorr"
+        rescorrmodel = NoResCorr()
+    else
+        error("The residual correction model $(param.Rescorr) is not defined.")
+    end
+
+    return rescorrmodel
 end
