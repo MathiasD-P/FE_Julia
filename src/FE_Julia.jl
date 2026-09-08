@@ -21,10 +21,11 @@ module FE_Julia
     include("basis.jl")
     include("nodes.jl")
     include("refelem.jl")
-    include("parameters.jl")
     include("DG_init.jl")
     include("physics.jl")
-    include("BCsICsSources.jl")
+    include("ICsandSources.jl")
+    include("parameters.jl") # parameters need physics and ICs to be defined
+    include("BCs.jl") # BCs need parameters to be defined
     include("build_residual.jl")
     include("ODE_solver.jl")
     include("postprocessing.jl")

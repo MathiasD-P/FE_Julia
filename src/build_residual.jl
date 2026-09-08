@@ -2,7 +2,7 @@
 # Assemble residual for different DG flavours
 #####################################################################
 
-function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandler::Dict, dg::DGStd, physics::PhysProp) where {T<:Real}
+function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, dg::DGStd, physics::PhysProp) where {T<:Real}
     # For a linear mesh, we can simplify the computation
     if dg.mesh isa LMesh
         # We compute the projected reference flux
@@ -15,7 +15,7 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
 
         # Finally, we evaluate numflux
         un = block_matmul(dg.refelem.chif, u, dg.mesh.Nel)
-        up = dg.FtoF * un + evaluate_BC(BChandler, dg, t)
+        up = dg.FtoF * un + evaluate_BC(physics.BChandler, dg, t)
         numflux = compute_numflux(un, up, dg.nphys, physics.numflux, physics.PDE)
         flux_to_ref!(numflux, dg.refelem.Nfnodes, dg)
 
@@ -33,14 +33,14 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
 
         # Add source (if applicable)
         if !(isnothing(physics.source))
-            residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(dg, physics.source, dg.qpts, t), dg.mesh.Nel)
+            residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(physics.source, physics.PDE, dg, dg.qpts, t), dg.mesh.Nel)
         end
 
         return residual
     end
 end
 
-function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandler::Dict, dg::DGFluxDiff, physics::PhysProp) where {T<:Real}
+function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, dg::DGFluxDiff, physics::PhysProp) where {T<:Real}
     if dg.mesh isa LMesh
         # We start by computing the entropy-projected solution (volume and face)
         v = compute_evar(block_matmul(dg.refelem.chiq, u, dg.mesh.Nel), physics.PDE) # Compute entropy variables at vol quadrature points
@@ -51,7 +51,7 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
         uq = compute_cvar(vq, physics.PDE)
         un = compute_cvar(vf, physics.PDE)
 
-        up = dg.FtoF * un + evaluate_BC(BChandler, dg, t)
+        up = dg.FtoF * un + evaluate_BC(physics.BChandler, dg, t)
 
         vf = vq = v = nothing
         residual .= 0.0
@@ -96,14 +96,14 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
 
         # Add source (if applicable)
         if !(isnothing(physics.source))
-            residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(dg, physics.source, dg.qpts, t), dg.mesh.Nel)
+            residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(physics.source, physics.PDE, dg, dg.qpts, t), dg.mesh.Nel)
         end
 
         return residual
     end
 end
 
-function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandler::Dict, dg::DGArtVisc, physics::PhysProp, debug=false) where {T<:Real}
+function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, dg::DGArtVisc, physics::PhysProp, debug=false) where {T<:Real}
     # If the user wants to know the values for the entropy deficit and artificial viscosity..
     if debug
         debug_data = Dict("delta" => Vector{Float64}(undef, dg.mesh.Nel), "visc" => Vector{Float64}(undef, dg.mesh.Nel), "den" => Vector{Float64}(undef, dg.mesh.Nel))
@@ -117,7 +117,7 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
 
         vn = block_matmul(dg.refelem.chif, v, dg.mesh.Nel)
         un = compute_cvar(vn, physics.PDE)
-        up = dg.FtoF * un + evaluate_BC(BChandler, dg, t)
+        up = dg.FtoF * un + evaluate_BC(physics.BChandler, dg, t)
         vp = compute_evar(up, physics.PDE) # FIX FOR BOUNDARY CONDITIONS!
 
         # FIRST AUXILIARY PROBLEM
@@ -206,7 +206,7 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
         
         # Add source (if applicable)
         if !(isnothing(physics.source))
-            residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(dg, physics.source, dg.qpts, t), dg.mesh.Nel)
+            residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(physics.source, physics.PDE, dg, dg.qpts, t), dg.mesh.Nel)
         end
 
         if debug
@@ -217,7 +217,7 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
     end
 end
 
-function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandler::Dict, dg::DGAddRes, physics::PhysProp) where {T<:Real}
+function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, dg::DGAddRes, physics::PhysProp) where {T<:Real}
     if dg.mesh isa LMesh
         # We start by computing the projected entropy variables and we evaluate face quantities
         uq = block_matmul(dg.refelem.chiq, u, dg.mesh.Nel)
@@ -226,7 +226,7 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
 
         vn = block_matmul(dg.refelem.chif, v, dg.mesh.Nel)
         un = compute_cvar(vn, physics.PDE)
-        up = dg.FtoF * un + evaluate_BC(BChandler, dg, t)
+        up = dg.FtoF * un + evaluate_BC(physics.BChandler, dg, t)
 
         # We compute the projected reference flux (we'll need it a few times)
         flux = compute_physflux(uq, physics.PDE)
@@ -285,14 +285,14 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandle
 
         # Add source (if applicable)
         if !(isnothing(physics.source))
-            residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(dg, physics.source, dg.qpts, t), dg.mesh.Nel)
+            residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(physics.source, physics.PDE, dg, dg.qpts, t), dg.mesh.Nel)
         end
 
         return residual
     end
 end
 
-function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, BChandler::Dict, dg::DGEntFilt, physics::PhysProp) where {T<:Real}
+function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, dg::DGEntFilt, physics::PhysProp) where {T<:Real}
 end
 
 #####################################################################

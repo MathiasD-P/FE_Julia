@@ -159,7 +159,7 @@ function make_validation_tests_parameters(testname::String)
                         domain="unit_interval_linear",
                         Neldim=2,
                         numfluxtype="ES_Chandrashekar_dissip",
-                        AVcoeff="AVEC",
+                        AVcoeff="AVdissip",
                         ICname="GassnerEuler",
                         BCname="periodic",
                         sourcename = "GassnerEuler",

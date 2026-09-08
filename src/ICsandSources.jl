@@ -13,7 +13,7 @@ struct Sin1State <: InitialCondition
 
     function Sin1State(k::Union{Float64,Nothing}=nothing, phi::Union{Float64,Nothing}=nothing, av::Union{Float64,Nothing}=nothing)
         # These are the default values
-        kdefault = 1.0
+        kdefault = 2*pi # THIS WAS CHANGED FROM 1 TO 2PI CAREFUL!
         phidefault = 0.0
         avdefault = 0.0
 
@@ -21,13 +21,17 @@ struct Sin1State <: InitialCondition
     end
 end
 
-function initialize_states(ic::Sin1State, dg::DG, physics::PhysProp, pts = nothing)
+function initialize_states(ic::Sin1State, dg::DG, PDE::GoverningPDE, pts = nothing)
     if isnothing(pts)
         pts = dg.bpts
     end
 
+    if PDE.Nstates != 1
+        error("Sin1State only works for 1 state problems!")
+    end
+
     u = zeros((size(pts,1), dg.Nstates))
-    u .= sin.(2*pi .* ic.k[1] .* (pts .- ic.phi)) .+ ic.av
+    u .= sin.(ic.k .* (pts .- ic.phi)) .+ ic.av
 
     return u
 end
@@ -44,12 +48,16 @@ struct Exp1State <: InitialCondition # Gaussian
     end
 end
 
-function initialize_states(ic::Exp1State, dg::DG, physics::PhysProp, pts = nothing)
+function initialize_states(ic::Exp1State, dg::DG, PDE::GoverningPDE, pts = nothing)
     if isnothing(pts)
         pts = dg.bpts
     end
 
-    if physics.PDE.dim != 1 || dg.dim != 1
+    if PDE.Nstates != 1
+        error("Sin1State only works for 1 state problems!")
+    end
+
+    if PDE.dim != 1 || dg.dim != 1
         error("1 State Gaussian only works in 1D!")
     end
 
@@ -73,12 +81,16 @@ struct Rarefaction1State <: InitialCondition # Heaviside function
     end
 end
 
-function initialize_states(ic::Rarefaction1State, dg::DG, physics::PhysProp, pts = nothing)
+function initialize_states(ic::Rarefaction1State, dg::DG, PDE::GoverningPDE, pts = nothing)
     if isnothing(pts)
         pts = dg.bpts
     end
 
-    if physics.PDE.dim != 1 || dg.dim != 1
+    if PDE.Nstates != 1
+        error("Sin1State only works for 1 state problems!")
+    end
+
+    if PDE.dim != 1 || dg.dim != 1
         error("1 State Rarefaction only works in 1D!")
     end
 
@@ -102,12 +114,16 @@ struct SuperOscillation1State <: InitialCondition # maximum oscillation at the b
     end
 end
 
-function initialize_states(ic::SuperOscillation1State, dg::DG, physics::PhysProp, pts = nothing)
+function initialize_states(ic::SuperOscillation1State, dg::DG, PDE::GoverningPDE, pts = nothing)
     if isnothing(pts)
         pts = dg.bpts
     end
 
-    if physics.PDE.dim != 1 || dg.dim != 1
+    if PDE.Nstates != 1
+        error("SuperOscillation1State only works for 1 state problems!")
+    end
+
+    if PDE.dim != 1 || dg.dim != 1
         error("1 State Super Oscillation only works in 1D!")
     end
 
@@ -122,12 +138,12 @@ struct BurgulenceIC <: InitialCondition # THIS SHOULD BE MERGED WITH BURGULENCE 
     kmax::Float64
 end
 
-function initialize_states(ic::BurgulenceIC, dg::DG, physics::PhysProp, pts = nothing) # Careful, Burgulence only makes sense on unit circle!
+function initialize_states(ic::BurgulenceIC, dg::DG, PDE::GoverningPDE, pts = nothing) # Careful, Burgulence only makes sense on unit circle!
     if isnothing(pts)
         error("Can only initialize Burgulence at basis nodes!")
     end
 
-    if physics.PDE.dim != 1 || dg.dim != 1
+    if PDE.dim != 1 || dg.dim != 1
         error("Burgulence only works in 1D!")
     end
 
@@ -151,24 +167,20 @@ struct IsentropicDensityWave <: InitialCondition # Classical test case used by (
     end
 end
 
-function initialize_states(ic::IsentropicDensityWave, dg::DG, physics::PhysProp, pts = nothing)
+function initialize_states(ic::IsentropicDensityWave, dg::DG, PDE::EulerPerfGas, pts = nothing)
     if isnothing(pts)
         pts = dg.bpts
-    end
-
-    if typeof(physics.PDE) isa EulerPerfGas
-        error("Isentropic density wave can only be initialized for EulerPerfGas!")
     end
 
     u = zeros((size(pts,1), dg.Nstates))
     u[:,1] .= 1 .+ ic.A .* sin.(2*pi.*sum(pts, dims=2))
     @views u[:,2] .= 0.1 .* u[:,1]
 
-    if physics.pde.dim == 1
-        @views u[:,end] = 10 / (physics.PDE.gamma - 1) .+ (0.5 * 0.1^2) .* u[:,1]
-    elseif physics.pde.dim == 2
+    if PDE.dim == 1
+        @views u[:,end] = 10 / (PDE.gamma - 1) .+ (0.5 * 0.1^2) .* u[:,1]
+    elseif PDE.dim == 2
         @views u[:,3] .= 0.2 .* u[:,1]
-        @views u[:,end] = 10 / (physics.PDE.gamma - 1) .+ (0.5 * (0.1^2 +0.2^2)) .* u[:,1]
+        @views u[:,end] = 10 / (PDE.gamma - 1) .+ (0.5 * (0.1^2 +0.2^2)) .* u[:,1]
     end
 
     return u
@@ -186,23 +198,19 @@ struct ChanWave <: InitialCondition # Scaled test case used by (Chan 2025) to in
     end
 end
 
-function initialize_states(ic::ChanWave, dg::DG, physics::PhysProp, pts = nothing)
+function initialize_states(ic::ChanWave, dg::DG, PDE::EulerPerfGas, pts = nothing)
     if isnothing(pts)
         pts = dg.bpts
     end
 
-    if typeof(physics.PDE) isa EulerPerfGas
-        error("Chan wave can only be initialized for EulerPerfGas!")
-    end
-
-    if physics.PDE.dim != 1 || dg.dim != 1
+    if PDE.dim != 1 || dg.dim != 1
         error("Chan wave only works in 1D!")
     end
 
     u = zeros((size(pts,1), dg.Nstates))
     u[:,1] .= 1 .+ ic.A .* sin.(2*pi.*pts .+ 0.1/2)
     u[:,2] .= ic.A .* sin.(2*pi.*pts .+ 0.2/2) .* u[:,1]
-    u[:,3] .= u[:,1].^physics.PDE.gamma ./ (physics.PDE.gamma-1) .+ 0.5 .* u[:,2].^2 ./ u[:,1]
+    u[:,3] .= u[:,1].^PDE.gamma ./ (PDE.gamma-1) .+ 0.5 .* u[:,2].^2 ./ u[:,1]
 
     return u
 end
@@ -225,16 +233,12 @@ struct GaussianVelocity <: InitialCondition # Gaussian velocity bump (ONLY IN 1D
     end
 end
 
-function initialize_states(ic::GaussianVelocity, dg::DG, physics::PhysProp, pts = nothing)
+function initialize_states(ic::GaussianVelocity, dg::DG, PDE::EulerPerfGas, pts = nothing)
     if isnothing(pts)
         pts = dg.bpts
     end
 
-    if typeof(physics.PDE) isa EulerPerfGas
-        error("Gaussian bump can only be initialized for EulerPerfGas!")
-    end
-
-    if physics.PDE.dim != 1 || dg.dim != 1
+    if PDE.dim != 1 || dg.dim != 1
         error("Gaussian bump only works in 1D!")
     end
 
@@ -249,24 +253,20 @@ end
 
 struct SodShockTube <: InitialCondition end
 
-function initialize_states(ic::SodShockTube, dg::DG, physics::PhysProp, pts = nothing)
+function initialize_states(ic::SodShockTube, dg::DG, PDE::EulerPerfGas, pts = nothing)
     if isnothing(pts)
         pts = dg.bpts
     end
 
-    if typeof(physics.PDE) isa EulerPerfGas
-        error("Sod Shock Tube can only be initialized for EulerPerfGas!")
-    end
-
-    if physics.PDE.dim != 1 || dg.dim != 1
+    if PDE.dim != 1 || dg.dim != 1
         error("Sod Shock Tube only works in 1D!")
     end
 
     u = zeros((size(pts,1), dg.Nstates))
     u[pts .< 0,1] .= 1
     u[pts .>= 0,1] .= 0.125
-    u[pts .< 0,3] .= 1.0 / (physics.PDE.gamma-1)
-    u[pts .< 0,3] .= 0.1 / (physics.PDE.gamma-1)
+    u[pts .< 0,3] .= 1.0 / (PDE.gamma-1)
+    u[pts .< 0,3] .= 0.1 / (PDE.gamma-1)
 
     return u
 end
@@ -299,16 +299,12 @@ struct GassnerBurgers <: DerivedInitialCondition
     source::GassnerBurgersSource
 end
 
-function initialize_states(ic::GassnerBurgers, dg::DG, physics::PhysProp, pts = nothing)
+function initialize_states(ic::GassnerBurgers, dg::DG, PDE::Burgers, pts = nothing)
     if isnothing(pts)
         pts = dg.bpts
     end
 
-    if typeof(physics.PDE) isa Burgers
-        error("GassnerBurgers can only be initialized for Burgers!")
-    end
-
-    if physics.PDE.dim != 1 || dg.dim != 1
+    if PDE.dim != 1 || dg.dim != 1
         error("GassnerBurgers only works in 1D!")
     end
 
@@ -318,14 +314,14 @@ function initialize_states(ic::GassnerBurgers, dg::DG, physics::PhysProp, pts = 
     return u
 end
 
-function compute_source(dg::DG, physics::PhysProp, pts::Matrix{Float64}, time::Float64)
+function compute_source(source::GassnerBurgersSource, PDE::Burgers, dg::DG, pts::Matrix{Float64}, time::Float64)
     Q = Matrix{Float64}(undef, (size(pts,1), dg.Nstates))
 
-    if physics.PDE.dim == 2
+    if PDE.dim == 2
         println("Verifiy the accuracy of source and manufactured solution in 2D. This has not been validated...")
     end
 
-    Q[:,1] .= (physics.source.A * physics.source.k) .* cos.(physics.source.k .* (pts .- physics.source.c * time)) .* (physics.source.A .* sin.(physics.source.k .* (pts .- physics.source.c * time)) .- physics.source.c .+ physics.source.av)
+    Q[:,1] .= (source.A * source.k) .* cos.(source.k .* (pts .- source.c * time)) .* (source.A .* sin.(source.k .* (pts .- source.c * time)) .- source.c .+ source.av)
 
     return Q
 end
@@ -352,16 +348,12 @@ struct GassnerEuler <: DerivedInitialCondition
     source::GassnerEulerSource
 end
 
-function initialize_states(ic::GassnerEuler, dg::DG, physics::PhysProp, pts = nothing)
+function initialize_states(ic::GassnerEuler, dg::DG, PDE::EulerPerfGas, pts = nothing)
     if isnothing(pts)
         pts = dg.bpts
     end
 
-    if typeof(physics.PDE) isa EulerPerfGas
-        error("GassnerEuler can only be initialized for Euler!")
-    end
-
-    if physics.PDE.dim != 1 || dg.dim != 1
+    if PDE.dim != 1 || dg.dim != 1
         error("GassnerEuler only works in 1D!")
     end
 
@@ -373,16 +365,16 @@ function initialize_states(ic::GassnerEuler, dg::DG, physics::PhysProp, pts = no
     return u
 end
 
-function compute_source(dg::DG, physics::PhysProp, pts::Matrix{Float64}, time::Float64)
+function compute_source(source::GassnerEulerSource, PDE::EulerPerfGas, dg::DG, pts::Matrix{Float64}, time::Float64)
     Q = Matrix{Float64}(undef, (size(pts,1), dg.Nstates))
 
-    if physics.PDE.dim == 2
+    if PDE.dim == 2
         println("Verifiy the accuracy of source and manufactured solution in 2D. This has not been validated...")
     end
 
-    Q[:,1] .=  physics.source.A*physics.source.k*(1.0-physics.source.c) .* cos.(physics.source.k * (sum(pts, dims=2) .- physics.source.c*time))
-    Q[:,2:end-1] .= physics.source.A*physics.source.k .* cos.(physics.source.k .* (sum(pts, dims=2) .- physics.source.c*time)) .* (2.0*physics.source.av*(physics.PDE.gamma-1.0)-0.5*(physics.PDE.gamma-3.0)-physics.source.c .+ 2.0*physics.source.A*(physics.PDE.gamma-1.0) .* sin.(physics.source.k .* (sum(pts, dims=2) .- physics.source.c*time)))
-    Q[:,end] .= physics.source.A*physics.source.k .* cos.(physics.source.k .* (sum(pts, dims=2) .- physics.source.c*time)) .* (2.0*physics.source.av*(physics.PDE.gamma-physics.source.c)-0.5*(physics.PDE.gamma-1.0) .+ 2.0*physics.source.A*(physics.PDE.gamma-physics.source.c) .* sin.(physics.source.k .* (sum(pts, dims=2) .- physics.source.c*time)))
+    Q[:,1] .=  source.A*source.k*(1.0-source.c) .* cos.(source.k * (sum(pts, dims=2) .- source.c*time))
+    Q[:,2:end-1] .= source.A*source.k .* cos.(source.k .* (sum(pts, dims=2) .- source.c*time)) .* (2.0*source.av*(PDE.gamma-1.0)-0.5*(PDE.gamma-3.0)-source.c .+ 2.0*source.A*(PDE.gamma-1.0) .* sin.(source.k .* (sum(pts, dims=2) .- source.c*time)))
+    Q[:,end] .= source.A*source.k .* cos.(source.k .* (sum(pts, dims=2) .- source.c*time)) .* (2.0*source.av*(PDE.gamma-source.c)-0.5*(PDE.gamma-1.0) .+ 2.0*source.A*(PDE.gamma-source.c) .* sin.(source.k .* (sum(pts, dims=2) .- source.c*time)))
 
     return Q
 end
@@ -552,50 +544,3 @@ end
 #         return Q
 #     end
 # end
-
-#####################################################################
-# Consistent mesh and BCHandler initializations (must absolutely be updated together)
-#####################################################################
-
-function initialize_mesh(param::parameters)
-    if param.domain == "unit_square_linear_quad"
-        if param.BCname == "periodic"
-            return make_rectangle_quad(param.Neldim, param.Neldim)
-        elseif param.BCname == "homogeneous_Dirichlet"
-            return make_rectangle_quad(param.Neldim, param.Neldim, [-1,-1,-1,-1])
-        end
-
-    elseif param.domain == "unit_interval_linear"
-        if param.BCname == "periodic"
-            return make_interval(collect(range(-0.5, 0.5, param.Neldim+1)), [0, 0])
-        elseif param.BCname == "homogeneous_Dirichlet"
-            return make_interval(collect(range(-0.5, 0.5, param.Neldim+1)), [-1, -1])
-        else
-            return make_interval(collect(range(-0.5, 0.5, param.Neldim+1)), [-1, -2])
-        end
-    end
-end
-
-function initialize_BCHandler(dg::DG, param::parameters)
-    if param.BCname == "periodic"
-        return Dict()
-
-    elseif param.BCname == "homogeneous_Dirichlet"
-        return Dict(-1 => zeros((dg.Nstates,)))
-    
-    elseif param.BCname == "unit_rarefaction"
-        return Dict(-1 => -ones((dg.Nstates,)), -2 => ones((dg.Nstates,)))
-
-    elseif param.BCname == "SodShockTube"
-        return Dict(-1 => [1.0, 0.0, 1.0 / (param.gamma-1)], -2 => [0.125, 0.0, 0.1 / (param.gamma-1)])
-    end
-end
-
-function evaluate_BC(BCHandler::Dict, dg::DG, t)
-    if isempty(BCHandler)
-        return spzeros(dg.NFval, dg.Nstates)
-
-    elseif BCHandler isa Dict{<:Integer, <:Vector{<:Real}}
-        return sum([dg.BFtoF[itag] * BCHandler[dg.mesh.BCtags[itag]]' for itag in 1:dg.mesh.Ntags])
-    end
-end

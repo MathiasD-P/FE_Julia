@@ -127,11 +127,11 @@ end
 
 function parse_parameters_PDE(param::parameters)
     if param.pdetype == "LinAdv"
-        PDE = PDE_LinAdv(param.dim, param.a)
+        PDE = LinAdv(param.dim, param.a)
     elseif param.pdetype == "Burgers"
-        PDE = PDE_Burgers(param.dim)
+        PDE = Burgers(param.dim)
     elseif param.pdetype == "EulerPerfGas"
-        PDE = PDE_EulerPerfGas(param.dim, param.gamma)
+        PDE = EulerPerfGas(param.dim, param.gamma)
     else
         error("The PDE type $(param.pdetype) is not defined. Please choose from LinAdv, Burgers, or EulerPerfGas.")
     end
@@ -179,11 +179,15 @@ function parse_parameters_tpflux(param::parameters)
             m = match(r"\((.*)\)-(.*)", param.qnodes)
             q = parse.(Int, split(m.captures[1], 'x')) - 1
         else
-            error("Cannot create an OGLL split two poin flux from the specified quadrature node name!")
+            error("Cannot create an OGLL split two point flux from the specified quadrature node name!")
         end
         alpha = (q+1) / (2*q+1)
         beta = q / (2*q+1)
         tpflux = SplitTPFlux(alpha, beta)
+    elseif param.twoptfluxtype == "EC_Chandrashekar"
+        tpflux = ECChandrashekarTPFlux()
+    elseif isnothing(param.twoptfluxtype)
+        tpflux = nothing
     else
         error("The two point flux $(param.twoptfluxtype) is not defined.")
     end
@@ -192,7 +196,7 @@ function parse_parameters_tpflux(param::parameters)
 end
 
 function parse_parameters_artvisc(param::parameters)
-    if param.dgtype != "DGArtVisc"
+    if param.dgtype != "DGArtVisc" && !(isnothing(param.AVcoeff))
         println("Warning: You are using the artificial viscosity parameter parser for a non-compatible DG type!")
     end
 
@@ -202,6 +206,8 @@ function parse_parameters_artvisc(param::parameters)
         artviscmodel = AVEC(param.addviscosity)
     elseif param.AVcoeff == "NoAV"
         artviscmodel = NoAV(param.addviscosity)
+    elseif isnothing(param.AVcoeff)
+        artviscmodel = nothing
     else
         error("The artificial viscosity model $(param.AVcoeff) is not defined.")
     end
@@ -210,8 +216,8 @@ function parse_parameters_artvisc(param::parameters)
 end
 
 function parse_parameters_rescorr(param::parameters)
-    if param.dgtype != "DGAddRes"
-        println("Warning: You are using the residual correction parameter parser for a non-compatible DG type!")
+    if param.dgtype != "DGAddRes" && !(isnothing(param.Rescorr))
+        println("Warning: You are using the non-trivial residual correction parameter parser for a non-compatible DG type!")
     end
 
     if param.Rescorr == "Rescorrdissip"
@@ -220,9 +226,69 @@ function parse_parameters_rescorr(param::parameters)
         rescorrmodel = ResCorrEC()
     elseif param.Rescorr == "NoRescorr"
         rescorrmodel = NoResCorr()
+    elseif isnothing(param.Rescorr)
+        rescorrmodel = nothing
     else
         error("The residual correction model $(param.Rescorr) is not defined.")
     end
 
     return rescorrmodel
+end
+
+function parse_parameters_initialcondition_and_source(param::parameters) # THIS SHOULD BE CHANGED IF MORE CONTROL OVER ICS AND SOURCES IS DESIRED
+    # First, we parse source
+    if param.sourcename == "GassnerBurgers"
+        source = GassnerBurgersSource()
+    elseif param.sourcename == "GassnerEuler"
+        source = GassnerEulerSource()
+    elseif isnothing(param.sourcename)
+        source = nothing
+    else
+        error("The source term $(param.sourcename) is not defined.")
+    end
+
+    # We move on to initial conditions
+    if param.ICname == "sin_1state"
+        ic = Sin1State(param.k, param.phi, param.av)
+    elseif param.ICname == "exp_1state"
+        ic = Exp1State()
+    elseif param.ICname == "rarefaction_1state"
+        ic = Rarefaction1State()
+    elseif param.ICname == "super_oscillation_1state"
+        ic = SuperOscillation1State()
+    elseif param.ICname == "Burgulence"
+        ic = BurgulenceIC(param.kmax)
+    elseif param.ICname == "IsentropicDensityWave"
+        ic = IsentropicDensityWave()
+    elseif param.ICname == "ChanWave"
+        ic = ChanWave()
+    elseif param.ICname == "GaussianVelocity"
+        ic = GaussianVelocity()
+    elseif param.ICname == "SodShockTube"
+        ic = SodShockTube()
+    elseif param.ICname == "GassnerBurgers"
+        ic = GassnerBurgers(source)
+    elseif param.ICname == "GassnerEuler"
+        ic = GassnerEuler(source)
+    else
+        error("The initial condition $(param.ICname) is not defined.")
+    end
+
+    return ic, source
+end
+
+function parse_parameters_timeintegrator(param::parameters)
+    auxcalc = AuxiliaryCalc(param.calc_entropy)
+
+    if param.ODE_solver == "LSERK45"
+        method = LSERK45(param.Nsteps, param.dt, auxcalc)
+    elseif param.ODE_solver == "SSPRK33"
+        method = SSPRK33(param.Nsteps, param.dt, auxcalc)
+    elseif param.ODE_solver == "SSPRRK33"
+        method = SSPRRK33(param.Nsteps, param.dt, auxcalc)
+    else
+        error("The time integrator $(param.ODE_solver) is not defined.")
+    end
+
+    return method
 end

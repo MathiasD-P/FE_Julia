@@ -42,6 +42,16 @@
 # end
 
 function set_up_problem(param::parameters)
+    # Initialize Problem Physics
+    PDE = parse_parameters_PDE(param)
+    ic, source = parse_parameters_initialcondition_and_source(param)
+
+    numflux = parse_parameters_numflux(param)
+    tpflux = parse_parameters_tpflux(param)
+    artviscmodel = parse_parameters_artvisc(param)
+    rescorrmodel = parse_parameters_rescorr(param)
+
+
     # initialize mesh and nodes
     mesh = initialize_mesh(param)
     bnodes = make_nodes(param.bnodes)
@@ -49,53 +59,51 @@ function set_up_problem(param::parameters)
     fnodes = make_nodes(param.refelem, param.fnodes)
 
     # initialize ref element and DG object
-    if param.pdetype == "LinAdv"
-        Nstates = 1
-    elseif param.pdetype == "Burgers"
-        Nstates = 1
-    elseif param.pdetype == "EulerPerfGas"
-        Nstates = 2 + param.dim
-    end
-
     if param.dgtype =="DGStd"
         refelem = RefElemStd(bnodes, qnodes, fnodes)
-        dg = DGStd(Nstates, refelem, mesh)
+        dg = DGStd(PDE.Nstates, refelem, mesh)
     elseif param.dgtype == "DGFluxDiff"
         refelem = RefElemSBP(bnodes, qnodes, fnodes)
-        dg = DGFluxDiff(Nstates, refelem, mesh)
+        dg = DGFluxDiff(PDE.Nstates, refelem, mesh)
     elseif param.dgtype == "DGArtVisc"
         refelem = RefElemStd(bnodes, qnodes, fnodes)
-        dg = DGArtVisc(Nstates, refelem, mesh)
+        dg = DGArtVisc(PDE.Nstates, refelem, mesh)
     elseif param.dgtype == "DGAddRes"
         refelem = RefElemStd(bnodes, qnodes, fnodes)
-        dg = DGAddRes(Nstates, refelem, mesh)
+        dg = DGAddRes(PDE.Nstates, refelem, mesh)
     else
         error("Unknown DG type!")
     end
 
-    # Initialize state and BCs
-    u0 = initialize_states(dg, param)
+    # Initialize BCs and physics object
     BChandler = initialize_BCHandler(dg, param)
+    physics = PhysProp(PDE, source, BChandler, numflux, tpflux, artviscmodel, rescorrmodel)
 
-    return u0, BChandler, dg
+    return ic, physics, dg
 end
 
 function set_up_and_solve(param::parameters)
     # setup problem
-    u0, BChandler, dg = set_up_problem(param)
+    ic, physics, dg = set_up_problem(param)
 
     # create error nodes if we need them
     if isnothing(param.enodes) == false
         enodes = make_nodes(param.enodes)
     end
 
+    # Create our time integrator
+    method = parse_parameters_timeintegrator(param)
+
+    # Initialize state
+    u0 = initialize_states(ic, dg, physics.PDE)
+
     # Now, we solve
-    output = ODE_solver(u0, BChandler, dg, param) # dictionary containing solution, final time and the time-history of all requested scalar observables
+    output = ODE_solver(u0, dg, physics, method) # dictionary containing solution, final time and the time-history of all requested scalar observables
     output["dg"] = dg # we add dg object to solution dict
 
     # if we want the error, we compute it
     if param.OOAtest
-        output["L2error"] = compute_L2error(output["solution"], output["time"], enodes, dg, param)
+        output["L2error"] = compute_L2error(output["solution"], output["time"], enodes, ic, dg, physics)
         return output
     else
         return output

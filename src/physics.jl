@@ -5,22 +5,6 @@
 # THE SOLUTION IS ALWAYS A MATRIX OF SIZE (Nstate, NDOF)
 
 #####################################################################
-# Physics Structure
-#####################################################################
-
-# The PhysProp structure contains the PDE, the numerical flux and the two-point flux used by the solvers
-
-mutable struct PhysProp
-    PDE::GoverningPDE
-    source::Union{CLawSource, Nothing}
-    numflux::NumFlux
-    tpflux::TPFlux
-    artvisc::Union{ArtViscModel, Nothing}
-    rescorr::Union{ResCorrModel, Nothing}
-end
-
-
-#####################################################################
 # Governing Equations
 #####################################################################
 
@@ -140,6 +124,10 @@ function compute_local_entropy(u::AbstractMatrix, PDE::LinAdvLogE)
     return -log.(u)
 end
 
+function compute_local_entropy(u::AbstractMatrix, PDE::Burgers)
+    return 0.5 .* u.^2
+end
+
 function compute_local_entropy(u::AbstractMatrix, PDE::EulerPerfGas)
     return -u[:,1] .* Euler_cvar_entropy(u, PDE)
 end
@@ -190,15 +178,15 @@ abstract type NumFlux end
 
 struct CentralNumFlux <: NumFlux end
 
-struct UpwindNumFlux <: Numflux end
+struct UpwindNumFlux <: NumFlux end
 
-struct LFNumFlux <: Numflux end
+struct LFNumFlux <: NumFlux end
 
-struct ECSplitNumFlux <: Numflux end
+struct ECSplitNumFlux <: NumFlux end
 
-struct ECChandrashekarNumFlux <: Numflux end
+struct ECChandrashekarNumFlux <: NumFlux end
 
-struct ESChandrashekarDissipNumFlux <: Numflux end
+struct ESChandrashekarDissipNumFlux <: NumFlux end
 
 
 # Linear advection numerical fluxes
@@ -291,7 +279,7 @@ struct SplitTPFlux <: TPFlux
     beta::Float64
 end
 
-struct ECChandrashekarTPFlux end
+struct ECChandrashekarTPFlux <: TPFlux end
 
 
 # Burgers two-point fluxes
@@ -355,7 +343,7 @@ end
 # Artifical viscosity coefficient
 #####################################################################
 
-abstract type ArtVisc end
+abstract type ArtViscModel end
 
 struct AVdissip <: ArtViscModel
     addvisc::Union{Float64, Nothing}
@@ -425,6 +413,24 @@ end
 
 function delta_clip(delta, rescorr::NoResCorr)
     return 0
+end
+
+
+#####################################################################
+# Physics Structure
+#####################################################################
+
+# The PhysProp structure contains the PDE, the BCs, the numerical flux and the two-point flux used by the solvers
+# The PhysProp structure governs the specific TRANSIENT evolution of the dynamical system.
+
+mutable struct PhysProp
+    PDE::GoverningPDE
+    source::Union{CLawSource, Nothing}
+    BChandler::Dict{Integer, Any}
+    numflux::NumFlux
+    tpflux::Union{TPFlux,Nothing}
+    artvisc::Union{ArtViscModel, Nothing}
+    rescorr::Union{ResCorrModel, Nothing}
 end
 
 

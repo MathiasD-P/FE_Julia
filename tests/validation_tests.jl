@@ -119,8 +119,14 @@ function test_viscosity(param, Nrefinements; filename=nothing)
     tab_title = ["DOF" "Delta" "OOA" "Visc" "OOA" "Den"]
 
     for i in 1:Nrefinements
+        PDE = parse_parameters_PDE(param)
+        ic, source = parse_parameters_ICsSources(param)
+
+        numflux = parse_parameters_numflux(param)
+        artviscmodel = parse_parameters_artvisc(param)
+
         # initialize mesh and nodes
-        mesh = FE_Julia.initialize_mesh(param)
+        mesh = FE_Julia.parse_parameters_mesh(param)
         bnodes = FE_Julia.make_nodes(param.bnodes)
         qnodes = FE_Julia.make_nodes(param.qnodes)
         fnodes = FE_Julia.make_nodes(param.refelem, param.fnodes)
@@ -142,12 +148,13 @@ function test_viscosity(param, Nrefinements; filename=nothing)
         refelemL2 = RefElemStd(bnodes, enodes, fnodes)
         epts = reduce(vcat, FE_Julia.mapping(dg.mesh, refelemL2.qnodes, ielem) for ielem in 1:dg.mesh.Nel)
 
-        # Initialize state and BCs
-        u0 = FE_Julia.block_matmul(refelemL2.Ph, FE_Julia.initialize_states(dg, param, epts), mesh.Nel) # Project initial conditions
+        # Initialize state, BCs and physics
+        u0 = FE_Julia.block_matmul(refelemL2.Ph, FE_Julia.initialize_states(dg, ic, PDE, epts), mesh.Nel) # Project initial conditions
         BChandler = FE_Julia.initialize_BCHandler(dg, param)
+        physics = PhysProp(PDE, BChandler, source, numflux, nothing, artviscmodel, nothing)
 
         # Compute viscosity and entropy deficit
-        residual, debug_data = FE_Julia.build_residual!(copy(u0), u0, 0.0, BChandler, dg, param, true)
+        residual, debug_data = FE_Julia.build_residual!(copy(u0), u0, 0.0, dg, param, physics, true)
         error[i,1] = dg.DOF
         error[i,2] = maximum(abs.(debug_data["delta"]))
         error[i,4] = maximum((debug_data["visc"]))
