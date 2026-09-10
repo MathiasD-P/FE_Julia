@@ -1,0 +1,5 @@
+[deps]
+DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
+FE_Julia = "33777599-7456-4e34-b76a-766ca612bcbb"
+LegendrePolynomials = "3db4a2ba-fc88-11e8-3e01-49c72059a882"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
