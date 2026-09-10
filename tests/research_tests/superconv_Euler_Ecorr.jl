@@ -57,18 +57,20 @@ function research_test(bnodes, qnodes, DGnames, colors, Nrefinements)
         # Standard DG residual
         params.dgtype = "DGArtVisc"
         params.AVcoeff = "NoAV"
-        u0, BChandler, dg = set_up_problem(params)
+        ic, physics, dg = set_up_problem(params)
+        u0 = initialize_states(ic, dg, physics.PDE)
         stdresidual = similar(u0)
-        build_residual!(stdresidual, u0, 0.0, BChandler, dg, params)
+        build_residual!(stdresidual, u0, 0.0, dg, physics)
         params.AVcoeff = "AVEC"
 
         # iterate through all dg schemes
         for mydg in DGnames
             # Standard DG residual
             params.dgtype = mydg
-            u0, BChandler, dg = set_up_problem(params)
+            u0, physics, dg = set_up_problem(params)
+            u0 = initialize_states(ic, dg, physics.PDE)
             residual = similar(u0)
-            build_residual!(residual, u0, 0.0, BChandler, dg, params)
+            build_residual!(residual, u0, 0.0, dg, physics)
 
             reserrors[mydg][i,2] = L2norm(residual .- stdresidual, chie, we, dg)
             reserrors[mydg][i,1] = dg.DOF

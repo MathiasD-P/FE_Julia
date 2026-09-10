@@ -43,9 +43,9 @@ mutable struct parameters
     gamma # specific heat ratio for Euler
     a # advection speed for lin advection
     addviscosity # viscosity offset for artificial viscosity
-    k::Union{Vector{Real},Nothing} # wavenumber for sinusoidal initializations (by state)
-    phi::Union{Vector{Real},Nothing} # phase shift for sinusoidal initializations (by state)
-    av::Union{Vector{Real},Nothing} # average for sinusoidal initializations (by state)
+    k::Union{Real,Nothing} # wavenumber for sinusoidal initializations
+    phi::Union{Real,Nothing} # phase shift for sinusoidal initializations
+    av::Union{Real,Nothing} # average for sinusoidal initializations
     kmax # wavenumber cutoff for Burgulence
 
     function parameters(;

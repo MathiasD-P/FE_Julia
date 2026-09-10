@@ -56,16 +56,18 @@ function research_test(bnodes, qnodes, mydg)
     # Standard DG residual
     params.dgtype = "DGArtVisc"
     params.AVcoeff = "NoAV"
-    u0, BChandler, dg = set_up_problem(params)
+    ic, physics, dg = set_up_problem(params)
+    u0 = initialize_states(ic, dg, physics.PDE)
     stdresidual = similar(u0)
-    build_residual!(stdresidual, u0, 0.0, BChandler, dg, params)
+    build_residual!(stdresidual, u0, 0.0, dg, physics)
     params.AVcoeff = "AVEC"
 
     # ES DG residual
     params.dgtype = mydg
-    u0, BChandler, dg = set_up_problem(params)
+    ic, physics, dg = set_up_problem(params)
+    u0 = initialize_states(ic, dg, physics.PDE)
     residual = similar(u0)
-    build_residual!(residual, u0, 0.0, BChandler, dg, params)
+    build_residual!(residual, u0, 0.0, dg, physics)
 
     dres = norm_Legendre_Vandermonde(dg.bpts[:], dg.DOF - 1) \ (residual .- stdresidual)
 

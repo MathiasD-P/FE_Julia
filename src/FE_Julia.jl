@@ -13,6 +13,9 @@ module FE_Julia
     export make_nodes
     export RefElemStd, RefElemSBP
     export DGStd, DGFluxDiff, DGArtVisc, DGAddRes, DGEntFilt
+    export NumFlux, TPFlux, ResCorrModel, ArtViscModel, GoverningPDE
+    export InitialCondition, CLawSource
+    export initialize_states, initialize_mesh, initialize_BCHandler
     export build_residual!
     export ODE_solver
     export set_up_and_solve, set_up_problem

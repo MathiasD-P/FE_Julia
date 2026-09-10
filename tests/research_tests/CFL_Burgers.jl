@@ -140,7 +140,7 @@ param = parameters(
                     ODE_solver="LSERK45",
                     maxval=50,
                     dtlim=[0.0001, 0.1],
-                    k=[4.0])
+                    k=8.0*pi)
 
 tol = 0.0001
 Tfinal = 5.0

@@ -58,9 +58,10 @@ function research_test(bnodes, qnodes, qnodesexact, filenames=nothing)
     # We first deal with the exact integration case
     params = make_parameters(bnodes, qnodesexact, "DGStd")
 
-    u0, BChandler, dg = set_up_problem(params)
+    ic, physics, dg = set_up_problem(params)
+    u0 = initialize_states(ic, dg, physics.PDE)
     residual = similar(u0)
-    build_residual!(residual, u0, 0.0, BChandler, dg, params)
+    build_residual!(residual, u0, 0.0, dg, physics)
 
     V = norm_Legendre_Vandermonde(dg.refelem.bnodes[:], dg.refelem.Nbnodes - 1)
     exact =  FE_Julia.block_matmul(inv(V), residual, dg.mesh.Nel)
@@ -71,9 +72,9 @@ function research_test(bnodes, qnodes, qnodesexact, filenames=nothing)
     for (idg, myDG) in enumerate(DGnames)
         params = make_parameters(bnodes, qnodes, myDG)
 
-        _, BChandler, dg = set_up_problem(params)
+        _, physics, dg = set_up_problem(params)
         residual = similar(u0)
-        build_residual!(residual, u0, 0.0, BChandler, dg, params)
+        build_residual!(residual, u0, 0.0, dg, physics)
 
         modalresidual = FE_Julia.block_matmul(inv(V), residual, dg.mesh.Nel)
         psi[:,idg] .= sum(reshape(abs.(modalresidual .- exact), (dg.refelem.Nbnodes, dg.mesh.Nel)), dims=2)[:]

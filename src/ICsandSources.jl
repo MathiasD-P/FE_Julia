@@ -139,7 +139,7 @@ struct BurgulenceIC <: InitialCondition # THIS SHOULD BE MERGED WITH BURGULENCE 
 end
 
 function initialize_states(ic::BurgulenceIC, dg::DG, PDE::GoverningPDE, pts = nothing) # Careful, Burgulence only makes sense on unit circle!
-    if isnothing(pts)
+    if !(isnothing(pts))
         error("Can only initialize Burgulence at basis nodes!")
     end
 
