@@ -64,7 +64,7 @@ function plot_test(errors, bnodes, qnodes, colors, DGnames, filename=nothing)
         end
         scatter!(plt, (errors[myDG][:,1]), (errors[myDG][:,2]), color=colors[colori], label=mylabel)
     end
-    aDG = collect(keys(errorsGL))[1]
+    aDG = collect(keys(errors))[1]
     plot!(plt, (errors[aDG][end-2:end,1]), 2 * errors[aDG][end,2] .* (errors[aDG][end-2:end,1] ./ errors[aDG][end,1]).^-order, color=:black, linestyle=:dash, label="Order " * string(order), ylims=(1e-10,30), dpi=500)
     display(plt)
 
