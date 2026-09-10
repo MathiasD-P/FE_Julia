@@ -45,7 +45,7 @@ function evaluate_BC(BCHandler::Dict, dg::DG, t)
     end
 end
 
-function isperiodic(BCHandler::Dict{Integer, Any})
+function isperiodic(BCHandler::Dict{})
     return isempty(BCHandler)
 end
 

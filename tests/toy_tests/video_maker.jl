@@ -16,7 +16,8 @@ function make_video(param::parameters, Nsave::Integer, chiplt::Matrix, pltrefpts
     param.Nsteps = Nsteps_bysave
 
     # Initialize problem
-    u0, BChandler, dg = set_up_problem(param)
+    ic, physics, dg = set_up_problem(param)
+    u0 = initialize_states(ic, dg, physics.PDE)
     t = 0
 
     # Compute plotting points
@@ -24,7 +25,7 @@ function make_video(param::parameters, Nsave::Integer, chiplt::Matrix, pltrefpts
 
     for isave = 1:(Nsave+1)
         if isave != 1
-            output = ODE_solver(u0, BChandler, dg, param)
+            output = ODE_solver(u0, dg, physics, FE_Julia.LSERK45(param.Nsteps, param.dt, FE_Julia.AuxiliaryCalc(param.calc_entropy)))
             u0 .= output["solution"]
             t += output["time"]
         end

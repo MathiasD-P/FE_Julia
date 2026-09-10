@@ -426,7 +426,7 @@ end
 mutable struct PhysProp
     PDE::GoverningPDE
     source::Union{CLawSource, Nothing}
-    BChandler::Dict{Integer, Any}
+    BChandler::Dict{}
     numflux::NumFlux
     tpflux::Union{TPFlux,Nothing}
     artvisc::Union{ArtViscModel, Nothing}
