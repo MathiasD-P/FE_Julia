@@ -182,7 +182,14 @@ struct UpwindNumFlux <: NumFlux end
 
 struct LFNumFlux <: NumFlux end
 
-struct ECSplitNumFlux <: NumFlux end
+struct ECSplitNumFlux <: NumFlux
+    alpha::Float64
+    beta::Float64
+
+    function ECSplitNumFlux()
+        new(2/3, 1/3)
+    end
+end
 
 struct ECChandrashekarNumFlux <: NumFlux end
 
@@ -270,9 +277,23 @@ end
 
 abstract type TPFlux end
 
-struct ECSplitTPFlux <: TPFlux end
+struct ECSplitTPFlux <: TPFlux
+    alpha::Float64
+    beta::Float64
 
-struct AVSplitTPFlux <: TPFlux end
+    function ECSplitTPFlux()
+        new(2/3, 1/3)
+    end
+end
+
+struct AVSplitTPFlux <: TPFlux
+    alpha::Float64
+    beta::Float64
+
+    function AVSplitTPFlux()
+        new(0.5, 0.5)
+    end
+end
 
 struct SplitTPFlux <: TPFlux
     alpha::Float64
