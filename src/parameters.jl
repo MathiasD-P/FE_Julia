@@ -170,7 +170,7 @@ function parse_parameters_tpflux(param::parameters)
     elseif param.twoptfluxtype == "OGL_split"
         if occursin(r"^\(.*\)-.*$", param.qnodes) # Check if this is the name of a tensor prod node
             m = match(r"\((.*)\)-(.*)", param.qnodes)
-            q = parse.(Int, split(m.captures[1], 'x')) - 1
+            q = parse.(Int, split(m.captures[1], 'x'))[1] - 1
         else
             error("Cannot create an OGL split two poin flux from the specified quadrature node name!")
         end
@@ -180,7 +180,7 @@ function parse_parameters_tpflux(param::parameters)
     elseif param.twoptfluxtype == "OGLL_split"
         if occursin(r"^\(.*\)-.*$", param.qnodes) # Check if this is the name of a tensor prod node
             m = match(r"\((.*)\)-(.*)", param.qnodes)
-            q = parse.(Int, split(m.captures[1], 'x')) - 1
+            q = parse.(Int, split(m.captures[1], 'x'))[1] - 1
         else
             error("Cannot create an OGLL split two point flux from the specified quadrature node name!")
         end

@@ -41,6 +41,19 @@
 
 # end
 
+function initialize_all_nodes(param::parameters) # does not include enodes
+    bnodes = make_nodes(param.bnodes)
+    qnodes = make_nodes(param.qnodes)
+    fnodes = make_nodes(param.refelem, param.fnodes)
+
+    if isnothing(param.qmnodes)
+        return bnodes, qnodes, fnodes
+    else
+        qmnodes = make_nodes(param.qmnodes)
+        return bnodes, qnodes, fnodes, qmnodes
+    end
+end
+
 function set_up_problem(param::parameters)
     # Initialize Problem Physics
     PDE = parse_parameters_PDE(param)
@@ -54,22 +67,20 @@ function set_up_problem(param::parameters)
 
     # initialize mesh and nodes
     mesh = initialize_mesh(param)
-    bnodes = make_nodes(param.bnodes)
-    qnodes = make_nodes(param.qnodes)
-    fnodes = make_nodes(param.refelem, param.fnodes)
+    allnodes = initialize_all_nodes(param)
 
     # initialize ref element and DG object
     if param.dgtype =="DGStd"
-        refelem = RefElemStd(bnodes, qnodes, fnodes)
+        refelem = RefElemStd(allnodes...)
         dg = DGStd(PDE.Nstates, refelem, mesh)
     elseif param.dgtype == "DGFluxDiff"
-        refelem = RefElemSBP(bnodes, qnodes, fnodes)
+        refelem = RefElemSBP(allnodes...)
         dg = DGFluxDiff(PDE.Nstates, refelem, mesh)
     elseif param.dgtype == "DGArtVisc"
-        refelem = RefElemStd(bnodes, qnodes, fnodes)
+        refelem = RefElemStd(allnodes...)
         dg = DGArtVisc(PDE.Nstates, refelem, mesh)
     elseif param.dgtype == "DGAddRes"
-        refelem = RefElemStd(bnodes, qnodes, fnodes)
+        refelem = RefElemStd(allnodes...)
         dg = DGAddRes(PDE.Nstates, refelem, mesh)
     else
         error("Unknown DG type!")
