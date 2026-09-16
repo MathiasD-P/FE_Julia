@@ -68,11 +68,7 @@ end
 
 # Physical fluxes for our supported PDEs
 
-function compute_physflux(u::AbstractMatrix, PDE::LinAdv)
-    return (PDE.a .* u,)
-end
-
-function compute_physflux(u::AbstractMatrix, PDE::LinAdvLogE)
+function compute_physflux(u::AbstractMatrix, PDE::Union{LinAdv, LinAdvLogE})
     return (PDE.a .* u,)
 end
 
@@ -88,7 +84,7 @@ end
 # Conservative variables to entropy variables for our supported PDEs
 
 function compute_evar(u::AbstractMatrix, PDE::LinAdvLogE)
-    return -u.^(-1)
+    return log.(PDE.a .* u)
 end
 
 function compute_evar(u::AbstractMatrix, PDE::Burgers)
@@ -103,7 +99,7 @@ end
 # Entropy variables to conservative variables for our supported PDEs
 
 function compute_cvar(v::AbstractMatrix, PDE::LinAdvLogE)
-    return -v.^(-1)
+    return exp.(v)./ PDE.a
 end
 
 function compute_cvar(v::AbstractMatrix, PDE::Burgers)
@@ -121,7 +117,7 @@ function compute_local_entropy(u::AbstractMatrix, PDE::LinAdv)
 end
 
 function compute_local_entropy(u::AbstractMatrix, PDE::LinAdvLogE)
-    return -log.(u)
+    return u .* log.(PDE.a .* u) .- u
 end
 
 function compute_local_entropy(u::AbstractMatrix, PDE::Burgers)
@@ -135,7 +131,7 @@ end
 # Compute the entropy potential for our supported PDEs
 
 function compute_cvar_potential(u::AbstractArray, PDE::LinAdvLogE)
-    return (PDE.a .* log.(u),)
+    return (PDE.a .* u,)
 end
 
 function compute_cvar_potential(u::AbstractArray, PDE::Burgers)
@@ -149,6 +145,10 @@ end
 
 # Compute Hessian from conservative variables
 # Operates on one node at the time.
+
+function compute_cvar_Hessian(u::AbstractVector, PDE::LinAdvLogE)
+    return reshape(u, (1,1))
+end
 
 function compute_cvar_Hessian(u::AbstractVector, PDE::Burgers)
     K = Matrix{Float64}(undef, 1, 1)
@@ -195,6 +195,8 @@ struct ECChandrashekarNumFlux <: NumFlux end
 
 struct ESChandrashekarDissipNumFlux <: NumFlux end
 
+struct LogMeanNumFlux <: NumFlux end
+
 
 # Linear advection numerical fluxes
 
@@ -213,6 +215,10 @@ function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Abstract
 
     f[index] = un[index]
     return (PDE.a .* f,)
+end
+
+function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::AbstractMatrix, numflux::LogMeanNumFlux, PDE::Union{LinAdv, LinAdvLogE})
+    return (logmean.(PDE.a .* un, PDE.a .* up),)
 end
 
 
@@ -301,6 +307,15 @@ struct SplitTPFlux <: TPFlux
 end
 
 struct ECChandrashekarTPFlux <: TPFlux end
+
+struct LogMeanTPFlux <: TPFlux end
+
+
+# Linear advection two-point flux
+
+function compute_two_pt_flux(up, un, tpflux::LogMeanTPFlux, PDE::LinAdvLogE)
+    return (logmean.(PDE.a .* up, PDE.a .* un),)
+end
 
 
 # Burgers two-point fluxes

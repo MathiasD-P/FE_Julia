@@ -75,6 +75,30 @@ function make_validation_tests_parameters(testname::String)
                         OOAtest=true,
                         gamma=1.4)
     
+    elseif occursin(r"test_OOA_DGFluxDiff_LinAdvLogE_1D_.*$", testname)
+        nodeparse = match(r"test_OOA_DGFluxDiff_LinAdvLogE_1D_b(.*)_q(.*)$", testname)
+        param = parameters(
+                        pdetype="LinAdvLogE",
+                        dim=1,
+                        dgtype="DGFluxDiff",
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
+                        enodes="(12)-GL",
+                        fnodes="(1)-GL",
+                        refelem="interval",
+                        domain="unit_interval_linear",
+                        Neldim=2,
+                        numfluxtype="upwind",
+                        twoptfluxtype="logmean",
+                        ICname="sin_1state",
+                        av = 2.0,
+                        BCname="periodic",
+                        ODE_solver="LSERK45",
+                        Nsteps=20000,
+                        dt=0.00005,
+                        OOAtest=true,
+                        a=1.2)
+    
     elseif occursin(r"test_OOA_DGFluxDiff_Burgers_1D_.*$", testname)
         nodeparse = match(r"test_OOA_DGFluxDiff_Burgers_1D_b(.*)_q(.*)$", testname)
         param = parameters(
@@ -122,6 +146,30 @@ function make_validation_tests_parameters(testname::String)
                         OOAtest=true,
                         gamma=1.4)
     
+    elseif occursin(r"test_OOA_DGArtVisc_LinAdvLogE_1D_.*$", testname)
+        nodeparse = match(r"test_OOA_DGArtVisc_LinAdvLogE_1D_b(.*)_q(.*)$", testname)
+        param = parameters(
+                        pdetype="LinAdvLogE",
+                        dim=1,
+                        dgtype="DGArtVisc",
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
+                        enodes="(12)-GL",
+                        fnodes="(1)-GL",
+                        refelem="interval",
+                        domain="unit_interval_linear",
+                        Neldim=2,
+                        numfluxtype="upwind",
+                        AVcoeff="AVdissip",
+                        ICname="sin_1state",
+                        av = 2.0,
+                        BCname="periodic",
+                        ODE_solver="LSERK45",
+                        Nsteps=20000,
+                        dt=0.00005,
+                        OOAtest=true,
+                        a=1.2)
+    
     elseif occursin(r"test_OOA_DGArtVisc_Burgers_1D_.*$", testname)
         nodeparse = match(r"test_OOA_DGArtVisc_Burgers_1D_b(.*)_q(.*)$", testname)
         param = parameters(
@@ -168,6 +216,30 @@ function make_validation_tests_parameters(testname::String)
                         dt=0.0001,
                         OOAtest=true,
                         gamma=1.4)
+
+        elseif occursin(r"test_OOA_DGAddRes_LinAdvLogE_1D_.*$", testname)
+        nodeparse = match(r"test_OOA_DGAddRes_LinAdvLogE_1D_b(.*)_q(.*)$", testname)
+        param = parameters(
+                        pdetype="LinAdvLogE",
+                        dim=1,
+                        dgtype="DGAddRes",
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
+                        enodes="(12)-GL",
+                        fnodes="(1)-GL",
+                        refelem="interval",
+                        domain="unit_interval_linear",
+                        Neldim=2,
+                        numfluxtype="upwind",
+                        Rescorr="RescorrEC",
+                        ICname="sin_1state",
+                        av = 2.0,
+                        BCname="periodic",
+                        ODE_solver="LSERK45",
+                        Nsteps=20000,
+                        dt=0.00005,
+                        OOAtest=true,
+                        a=1.2)
     
     elseif occursin(r"test_OOA_DGAddRes_Burgers_1D_.*$", testname)
         nodeparse = match(r"test_OOA_DGAddRes_Burgers_1D_b(.*)_q(.*)$", testname)
@@ -216,6 +288,29 @@ function make_validation_tests_parameters(testname::String)
                         dt=0.0001,
                         OOAtest=true,
                         gamma=1.4)
+        
+    elseif occursin(r"test_ent_DGStd_LinAdvLogE_1D_.*$", testname)
+        nodeparse = match(r"test_ent_DGStd_LinAdvLogE_1D_b(.*)_q(.*)$", testname)
+        param = parameters(
+                        pdetype="LinAdvLogE",
+                        dim=1,
+                        dgtype="DGStd",
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
+                        enodes="(12)-GL",
+                        fnodes="(1)-GL",
+                        refelem="interval",
+                        domain="unit_interval_linear",
+                        Neldim=20,
+                        numfluxtype="logmean",
+                        ICname="sin_1state",
+                        av = 2.0,
+                        BCname="periodic",
+                        ODE_solver="LSERK45",
+                        Nsteps=4000,
+                        dt=0.00025,
+                        calc_entropy=true,
+                        a=1.2)
     
     elseif occursin(r"test_ent_DGStd_Chand_Euler_1D_.*$", testname)
         nodeparse = match(r"test_ent_DGStd_Chand_Euler_1D_b(.*)_q(.*)$", testname)
@@ -237,6 +332,30 @@ function make_validation_tests_parameters(testname::String)
                         dt=0.00001,
                         calc_entropy=true,
                         gamma=1.4)
+
+    elseif occursin(r"test_ent_DGFluxDiff_LinAdvLogE_1D_.*$", testname)
+        nodeparse = match(r"test_ent_DGFluxDiff_LinAdvLogE_1D_b(.*)_q(.*)$", testname)
+        param = parameters(
+                        pdetype="LinAdvLogE",
+                        dim=1,
+                        dgtype="DGFluxDiff",
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
+                        enodes="(12)-GL",
+                        fnodes="(1)-GL",
+                        refelem="interval",
+                        domain="unit_interval_linear",
+                        Neldim=20,
+                        numfluxtype="logmean",
+                        twoptfluxtype="logmean",
+                        ICname="sin_1state",
+                        av = 2.0,
+                        BCname="periodic",
+                        ODE_solver="LSERK45",
+                        Nsteps=4000,
+                        dt=0.00025,
+                        calc_entropy=true,
+                        a=1.2)
                     
     elseif occursin(r"test_ent_DGFluxDiff_Chand_Euler_1D_.*$", testname)
         nodeparse = match(r"test_ent_DGFluxDiff_Chand_Euler_1D_b(.*)_q(.*)$", testname)
@@ -281,6 +400,30 @@ function make_validation_tests_parameters(testname::String)
                         dt=0.00002,
                         calc_entropy=true)
     
+    elseif occursin(r"test_ent_DGArtVisc_LinAdvLogE_1D_.*$", testname)
+        nodeparse = match(r"test_ent_DGArtVisc_LinAdvLogE_1D_b(.*)_q(.*)$", testname)
+        param = parameters(
+                        pdetype="LinAdvLogE",
+                        dim=1,
+                        dgtype="DGArtVisc",
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
+                        enodes="(12)-GL",
+                        fnodes="(1)-GL",
+                        refelem="interval",
+                        domain="unit_interval_linear",
+                        Neldim=20,
+                        numfluxtype="logmean",
+                        AVcoeff="AVEC",
+                        ICname="sin_1state",
+                        av = 2.0,
+                        BCname="periodic",
+                        ODE_solver="LSERK45",
+                        Nsteps=4000,
+                        dt=0.00025,
+                        calc_entropy=true,
+                        a=1.2)
+    
     elseif occursin(r"test_ent_DGArtVisc_Chand_Euler_1D_.*$", testname)
         nodeparse = match(r"test_ent_DGArtVisc_Chand_Euler_1D_b(.*)_q(.*)$", testname)
         param = parameters(
@@ -323,6 +466,30 @@ function make_validation_tests_parameters(testname::String)
                         Nsteps=10000,
                         dt=0.00002,
                         calc_entropy=true)
+    
+    elseif occursin(r"test_ent_DGAddRes_LinAdvLogE_1D_.*$", testname)
+        nodeparse = match(r"test_ent_DGAddRes_LinAdvLogE_1D_b(.*)_q(.*)$", testname)
+        param = parameters(
+                        pdetype="LinAdvLogE",
+                        dim=1,
+                        dgtype="DGAddRes",
+                        bnodes=nodeparse[1],
+                        qnodes=nodeparse[2],
+                        enodes="(12)-GL",
+                        fnodes="(1)-GL",
+                        refelem="interval",
+                        domain="unit_interval_linear",
+                        Neldim=20,
+                        numfluxtype="logmean",
+                        Rescorr="RescorrEC",
+                        ICname="sin_1state",
+                        av = 2.0,
+                        BCname="periodic",
+                        ODE_solver="LSERK45",
+                        Nsteps=4000,
+                        dt=0.00025,
+                        calc_entropy=true,
+                        a=1.2)
     
     elseif occursin(r"test_ent_DGAddRes_Chand_Euler_1D_.*$", testname)
         nodeparse = match(r"test_ent_DGAddRes_Chand_Euler_1D_b(.*)_q(.*)$", testname)

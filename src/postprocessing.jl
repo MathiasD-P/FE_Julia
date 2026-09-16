@@ -2,7 +2,7 @@
 # Everything we want to do with the solution once we have it
 #####################################################################
 
-function local_L2error(u, t, epts, chie, dg::DG, PDE::LinAdv, ic::InitialCondition, BChandler::Dict, source::Nothing)
+function local_L2error(u, t, epts, chie, dg::DG, PDE::Union{LinAdv,LinAdvLogE}, ic::InitialCondition, BChandler::Dict, source::Nothing)
     if !(isperiodic(BChandler) && isperiodicunitinterval(dg.mesh))
         error("Error for linear advection can only be computed for periodic BCs on the unit interval!")
     end

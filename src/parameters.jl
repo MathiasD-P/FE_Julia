@@ -131,6 +131,8 @@ end
 function parse_parameters_PDE(param::parameters)
     if param.pdetype == "LinAdv"
         PDE = LinAdv(param.dim, param.a)
+    elseif param.pdetype == "LinAdvLogE"
+        PDE = LinAdvLogE(param.dim, param.a)
     elseif param.pdetype == "Burgers"
         PDE = Burgers(param.dim)
     elseif param.pdetype == "EulerPerfGas"
@@ -155,6 +157,8 @@ function parse_parameters_numflux(param::parameters)
         numflux = ECChandrashekarNumFlux()
     elseif param.numfluxtype == "ES_Chandrashekar_dissip"
         numflux = ESChandrashekarDissipNumFlux()
+    elseif param.numfluxtype == "logmean"
+        numflux = LogMeanNumFlux()
     else
         error("The numerical flux $(param.numfluxtype) is not defined.")
     end
@@ -189,6 +193,8 @@ function parse_parameters_tpflux(param::parameters)
         tpflux = SplitTPFlux(alpha, beta)
     elseif param.twoptfluxtype == "EC_Chandrashekar"
         tpflux = ECChandrashekarTPFlux()
+    elseif param.twoptfluxtype == "logmean"
+        tpflux = LogMeanTPFlux()
     elseif isnothing(param.twoptfluxtype)
         tpflux = nothing
     else
