@@ -183,7 +183,7 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, dg::DGAr
 
         # THIRD AUXILIARY PROBLEM
         sigman = Tuple(block_matmul(dg.refelem.chif, sigma[dir], dg.mesh.Nel) for dir in 1:dg.dim)
-        sigmap = Tuple(dg.FtoF * sigman[dir] for dir in 1:dg.dim) # FIX FOR BOUNDARY CONDITIONS
+        sigmap = Tuple(dg.FtoF * sigman[dir] + evaluate_AuxBC(physics.AuxBChandler, dg, t, dir) for dir in 1:dg.dim) # FIX FOR BOUNDARY CONDITIONS
         gvisc = AV_auxiliary2(sigma, sigman, sigmap, dg)
 
         # PRIMARY PROBLEM
@@ -214,6 +214,78 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, dg::DGAr
         else
             return residual
         end
+    end
+end
+
+# This is the component of the build_residual! function that computes sigma. For Von Neumann Analysis.
+
+function build_sigma(u::Matrix{T}, t::Float64, dg::DGArtVisc, physics::PhysProp) where {T<:Real}
+    if dg.mesh isa LMesh
+        # We start by computing the projected entropy variables and we evaluate face quantities
+        uq = block_matmul(dg.refelem.chiq, u, dg.mesh.Nel)
+        v = compute_evar(uq, physics.PDE)
+        v = block_matmul(dg.refelem.Ph, v, dg.mesh.Nel)
+
+        vn = block_matmul(dg.refelem.chif, v, dg.mesh.Nel)
+        un = compute_cvar(vn, physics.PDE)
+        up = dg.FtoF * un + evaluate_BC(physics.BChandler, dg, t)
+        vp = compute_evar(up, physics.PDE) # FIX FOR BOUNDARY CONDITIONS!
+
+        # FIRST AUXILIARY PROBLEM
+        theta = AV_auxiliary1(v, vn, vp, dg)
+
+        # We compute projected scaled entropy gradient
+        thetaq = Tuple(block_matmul(dg.refelem.chiq, theta[dir], dg.mesh.Nel) for dir in 1:dg.dim)
+        thetaK = Tuple(Matrix{eltype(u)}(undef, dg.mesh.Nel*dg.refelem.Nqnodes, dg.Nstates) for dir in 1:dg.dim)
+
+        for iqnode in 1:dg.mesh.Nel*dg.refelem.Nqnodes
+            K = compute_cvar_Hessian(uq[iqnode,:], physics.PDE)
+            for dir in 1:dg.dim
+                @views thetaK[dir][iqnode,:] .= K * thetaq[dir][iqnode,:]
+            end
+        end
+        thetaK = Tuple(block_matmul(dg.refelem.Ph, thetaK[dir], dg.mesh.Nel) for dir in 1:dg.dim)
+
+        # We compute the projected reference flux (we'll need it a few times)
+        flux = compute_physflux(uq, physics.PDE)
+        flux_to_ref!(flux, dg.refelem.Nqnodes, dg)
+        flux = Tuple(block_matmul(dg.refelem.Ph, flux[dir], dg.mesh.Nel) for dir in 1:dg.dim)
+
+        # Artificial viscosity
+        sigma = Tuple(Matrix{eltype(u)}(undef, dg.DOF, dg.Nstates) for dir in 1:dg.dim)
+        for ielem = 1:dg.mesh.Nel
+            indexf = 1+dg.refelem.Nfnodes*dg.refelem.Nfaces*(ielem-1):dg.refelem.Nfnodes*dg.refelem.Nfaces*ielem
+            indexb = 1+dg.refelem.Nbnodes*(ielem-1):dg.refelem.Nbnodes*ielem
+
+            # Elemental entropy deficit
+            @views psi = compute_cvar_potential(un[indexf,:], physics.PDE)
+            flux_to_ref!(psi, dg.refelem.Nfnodes, dg)
+
+            delta = 0.0
+            for dir in 1:dg.dim
+                for istate in 1:dg.Nstates
+                    @views delta -= flux[dir][indexb,istate]' * dg.refelem.Qh[dir] * v[indexb,istate]
+                end
+                @views delta += dot(dg.refelem.bh[dir], psi[dir])
+            end
+
+            # Entropy denominator
+            den = 0.0
+            for dir in 1:dg.dim, istate in 1:dg.Nstates
+                @views den += thetaK[dir][indexb,istate]' * dg.refelem.M * theta[dir][indexb,istate] # since we are using a block diagonal K as in (Chan 2025)
+            end
+            den *= dg.mesh.detJ[ielem] # scale by Jacobian
+
+            # Artifical viscosity coefficient
+            epsilon = AV_coeff(delta, den, physics.artvisc)
+
+            # We finally build the viscous entropy fluxes
+            for dir in 1:dg.dim
+                @views sigma[dir][indexb,:] .= epsilon .* thetaK[dir][indexb,:]
+            end
+        end
+
+        return sigma
     end
 end
 

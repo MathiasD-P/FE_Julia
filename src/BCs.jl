@@ -45,6 +45,14 @@ function evaluate_BC(BCHandler::Dict, dg::DG, t)
     end
 end
 
+function evaluate_AuxBC(AuxBCHandler::Union{Nothing, Dict{}}, dg::DG, t, dir::Int64)
+    if isnothing(AuxBCHandler)
+        return spzeros(dg.NFval, dg.Nstates)
+    else
+        return evaluate_BC(AuxBCHandler[dir])
+    end
+end
+
 function isperiodic(BCHandler::Dict{})
     return isempty(BCHandler)
 end

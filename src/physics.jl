@@ -463,10 +463,24 @@ mutable struct PhysProp
     PDE::GoverningPDE
     source::Union{CLawSource, Nothing}
     BChandler::Dict{}
+    AuxBChandler::Union{Tuple{Dict{}}, Tuple{Dict{}, Dict{}}, Nothing}
     numflux::NumFlux
     tpflux::Union{TPFlux,Nothing}
     artvisc::Union{ArtViscModel, Nothing}
     rescorr::Union{ResCorrModel, Nothing}
+
+    function PhysProp(PDE::GoverningPDE, source::Union{CLawSource, Nothing}, BChandler::Dict{}, numflux::NumFlux, tpflux::Union{TPFlux,Nothing}, artvisc::Union{ArtViscModel, Nothing}, rescorr::Union{ResCorrModel, Nothing})
+        new(
+            PDE,
+            source,
+            BChandler,
+            nothing,
+            numflux,
+            tpflux,
+            artvisc,
+            rescorr
+        )
+    end
 end
 
 
