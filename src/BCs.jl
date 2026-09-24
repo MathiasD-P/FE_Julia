@@ -45,7 +45,7 @@ function evaluate_BC(BCHandler::Dict, dg::DG, t)
     end
 end
 
-function evaluate_AuxBC(AuxBCHandler::Union{Nothing, Dict{}}, dg::DG, t, dir::Int64)
+function evaluate_AuxBC(AuxBCHandler::Union{Nothing, Tuple{Dict{}}, Tuple{Dict{}, Dict{}}}, dg::DG, t, dir::Int64)
     if isnothing(AuxBCHandler)
         return spzeros(dg.NFval, dg.Nstates)
     else
