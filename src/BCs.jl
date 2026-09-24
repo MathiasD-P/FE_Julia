@@ -49,7 +49,7 @@ function evaluate_AuxBC(AuxBCHandler::Union{Nothing, Tuple{Dict{}}, Tuple{Dict{}
     if isnothing(AuxBCHandler)
         return spzeros(dg.NFval, dg.Nstates)
     else
-        return evaluate_BC(AuxBCHandler[dir])
+        return evaluate_BC(AuxBCHandler[dir], dg, t)
     end
 end
 
