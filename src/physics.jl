@@ -241,7 +241,7 @@ function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Abstract
 end
 
 function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Union{AbstractMatrix,Nothing}, numflux::LFNumFlux, PDE::Burgers)
-    return (0.25 .* ((un.^2 .+ up.^2) .- max.(abs.(up), abs.(un)) .* (up .- un) .* nphys),)
+    return (0.25 .* (un.^2 .+ up.^2) .- 0.5 .* max.(abs.(up), abs.(un)) .* (up .- un) .* nphys,)
 end
 
 function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Union{AbstractMatrix,Nothing}, numflux::ECSplitNumFlux, PDE::Burgers)
