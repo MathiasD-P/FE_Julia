@@ -182,6 +182,10 @@ struct UpwindNumFlux <: NumFlux end
 
 struct LFNumFlux <: NumFlux end
 
+struct LFOLDNumFlux <: NumFlux end
+
+struct ECPenaltyNumFlux <: NumFlux end
+
 struct ECSplitNumFlux <: NumFlux
     alpha::Float64
     beta::Float64
@@ -242,6 +246,14 @@ end
 
 function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Union{AbstractMatrix,Nothing}, numflux::LFNumFlux, PDE::Burgers)
     return (0.25 .* (un.^2 .+ up.^2) .- 0.5 .* max.(abs.(up), abs.(un)) .* (up .- un) .* nphys,)
+end
+
+function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Union{AbstractMatrix,Nothing}, numflux::LFOLDNumFlux, PDE::Burgers)
+    return (0.25 .* (un.^2 .+ up.^2) .- 0.25 .* max.(abs.(up), abs.(un)) .* (up .- un) .* nphys,)
+end
+
+function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Union{AbstractMatrix,Nothing}, numflux::ECPenaltyNumFlux, PDE::Burgers)
+    return ((1/6) .* (un.^2 .+ up .* un .+ up.^2) .- 0.25 .* abs.(up .+ un) .* (up .- un) .* nphys,)
 end
 
 function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Union{AbstractMatrix,Nothing}, numflux::ECSplitNumFlux, PDE::Burgers)
