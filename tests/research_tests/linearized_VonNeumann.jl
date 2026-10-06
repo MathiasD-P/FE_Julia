@@ -45,17 +45,3 @@ function linearized_VN(dg::Union{DGStd, DGFluxDiff, DGAddRes}, physics::FE_Julia
 
     return wavenum, omega, modes
 end
-
-bnodes = make_nodes("(4)-GLL")
-qnodes = make_nodes("(4)-GLL")
-
-dg = DGStd(1, RefElemStd(bnodes, qnodes, make_nodes("interval", "(1)-GLL")), FE_Julia.make_interval([0, 1.0], [-1 -2]))
-physics = FE_Julia.PhysProp(FE_Julia.Burgers(1), nothing, Dict(-1=> [1.0], -2=>[1.0]), FE_Julia.UpwindNumFlux(), nothing, nothing, nothing)
-u0 = -sin.(dg.bpts) .+ 5.0
-
-
-out = linearized_VN(dg, physics, u0)
-plt1=plot(out[1], imag(out[2]))
-display(plt1)
-plt2=plot(out[1], real(out[2]))
-display(plt2)

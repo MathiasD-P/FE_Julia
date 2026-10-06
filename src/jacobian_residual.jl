@@ -13,7 +13,7 @@ function residual_jacobian(u, t::Float64, dg::DGStd, physics::PhysProp)
     return ForwardDiff.jacobian(residual_wrapper, u)
 end
 
-function residual_jacobian_Dirichlet(u, t::Float64, dg::DGStd, physics::PhysProp)
+function residual_jacobian_Dirichlet(u, t::Float64, dg::Union{DGStd, DGFluxDiff, DGAddRes}, physics::PhysProp)
     if dg.dim !=1 || physics.PDE.dim != 1
         error("residual_jacobian_Dirichlet only works in one dimension.")
     end

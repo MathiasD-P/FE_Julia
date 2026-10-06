@@ -34,7 +34,7 @@ function classical_VN(refelem::RefElemStd, numflux::NumFlux, delta=0.001, all::B
 
     for thetai in 2:length(wavenum)
         theta = wavenum[thetai]
-        ext_mat = [refelem.chif[2,:]' .* exp(-im * theta); refelem.chif[1,:]' .* exp(-im * theta)]
+        ext_mat = [refelem.chif[2,:]' .* exp(-im * theta); refelem.chif[1,:]' .* exp(im * theta)]
         VN_mat = -refelem.Dh[1] .+ refelem.LIFT[1] * (refelem.chif .- FE_Julia.compute_numflux(refelem.chif, ext_mat, repeat(dg.nphys, 1, refelem.Nbnodes), numflux, PDE)[1]) # haha, weird overloading of numflux
 
         # Solve eigenvalue problem
@@ -47,7 +47,7 @@ function classical_VN(refelem::RefElemStd, numflux::NumFlux, delta=0.001, all::B
             # Find the physical mode
             targeti = argmin(abs.(F.values .- (omega[thetai-1] + domega * delta)))
             omega[thetai] = F.values[targeti]
-            modes[thetai,:] = F.vectors[:,targeti] .* (conj(F.vectors[1,targeti]) / abs(F.vectors[1,targeti]) * exp(im * pi)) # we make sure to align phase as well
+            modes[thetai,:] = F.vectors[:,targeti] .* (conj(F.vectors[1,targeti]) / abs(F.vectors[1,targeti])) # we make sure to align phase as well
 
             # compute linear approximation of omega
             domega = (omega[thetai]-omega[thetai-1]) / delta
@@ -107,8 +107,8 @@ function L2_wave(dg::FE_Julia.DG, physics::FE_Julia.PhysProp, wavenum::Vector{Fl
         # we attempt to extract dispersion and dissipation
         sinL2 .= sinL2 .- mean
         cosL2 .= cosL2 .- mean
-        mu[itheta] = sum((res_sin .* sinL2 .+ res_cos .* cosL2) ./ (sinL2.^2 .+ cosL2.^2)) / dg.refelem.Nbnodes
-        nu[itheta] = -sum((res_sin .* cosL2 .- res_cos .* sinL2) ./ (sinL2.^2 .+ cosL2.^2)) / dg.refelem.Nbnodes
+        mu[itheta] = (dot(res_sin, refelem_proj.M * sinL2) + dot(res_cos, refelem_proj.M * cosL2)) / (dot(sinL2, refelem_proj.M * sinL2) + dot(cosL2, refelem_proj.M * cosL2))
+        nu[itheta] = -((dot(res_sin, refelem_proj.M * cosL2) - dot(res_cos, refelem_proj.M * sinL2)) / (dot(sinL2, refelem_proj.M * sinL2) + dot(cosL2, refelem_proj.M * cosL2)))
     end
 
     return mu, nu
@@ -232,101 +232,105 @@ end
 # display(plt2)
 
 
-### TESTS FOR L2_WAVE
+## TESTS FOR L2_WAVE
 
-# mean = 200.0
-# phi = 1.2 * pi
-# bnodes = make_nodes("(4)-GLL")
-# qnodes = make_nodes("(4)-GLL")
-
-# dg = DGStd(1, RefElemStd(bnodes, qnodes, make_nodes("interval", "(1)-GLL")), FE_Julia.make_interval([0, 1.0], [-1, -2]))
-# physics = FE_Julia.PhysProp(FE_Julia.LinAdvLogE(1, 1.0), nothing, Dict(), FE_Julia.UpwindNumFlux(), nothing, nothing, nothing)
-# wavenum = collect(0.0:0.01:(4*pi))
-
-# mu, nu = L2_wave(dg, physics, wavenum, mean, phi)
-
-# plt1 = plot(wavenum,mu, xlabel=L"\theta", ylabel="Dissipation", label="Standard", color=:black)
-# plt2 = plot(wavenum,nu, xlabel=L"\theta", ylabel="Dispersion", label="Standard", color=:black)
-
-
-# dg = DGFluxDiff(1, RefElemSBP(bnodes, qnodes, make_nodes("interval", "(1)-GLL")), FE_Julia.make_interval([0, 1.0], [-1, -2]))
-# physics = FE_Julia.PhysProp(FE_Julia.LinAdvLogE(1, 1.0), nothing, Dict(), FE_Julia.UpwindNumFlux(), FE_Julia.LogMeanTPFlux(), nothing, nothing)
-# wavenum = collect(0.0:0.01:(4*pi))
-
-# mu, nu = L2_wave(dg, physics, wavenum, mean, phi)
-
-# plot!(plt1,wavenum,mu, xlabel=L"\theta", ylabel="Dissipation", label="Flux Diff.", color=:red)
-# plot!(plt2,wavenum,nu, xlabel=L"\theta", ylabel="Dispersion", label="Flux Diff.", color=:red)
-
-
-# dg = DGAddRes(1, RefElemStd(bnodes, qnodes, make_nodes("interval", "(1)-GLL")), FE_Julia.make_interval([0, 1.0], [-1, -2]))
-# physics = FE_Julia.PhysProp(FE_Julia.LinAdvLogE(1, 1.0), nothing, Dict(), FE_Julia.UpwindNumFlux(), nothing, nothing, FE_Julia.ResCorrEC())
-# wavenum = collect(0.0:0.01:(4*pi))
-
-# mu, nu = L2_wave(dg, physics, wavenum, mean, phi)
-
-# plot!(plt1,wavenum,mu, xlabel=L"\theta", ylabel="Dissipation", label="Res. Corr.", color=:green)
-# plot!(plt2,wavenum,nu, xlabel=L"\theta", ylabel="Dispersion", label="Res. Corr.", color=:green)
-
-
-# dg = DGArtVisc(1, RefElemStd(bnodes, qnodes, make_nodes("interval", "(1)-GLL")), FE_Julia.make_interval([0, 1.0], [-1, -2]))
-# physics = FE_Julia.PhysProp(FE_Julia.LinAdvLogE(1, 1.0), nothing, Dict(), FE_Julia.UpwindNumFlux(), nothing, FE_Julia.AVdissip(nothing), nothing)
-# wavenum = collect(0.0:0.01:(4*pi))
-
-# mu, nu = L2_wave(dg, physics, wavenum, mean, phi)
-
-# plot!(plt1,wavenum,mu, xlabel=L"\theta", ylabel="Dissipation", label="Art. Visc.", color=:blue)
-# plot!(plt2,wavenum,nu, xlabel=L"\theta", ylabel="Dispersion", label="Art. Visc.", color=:blue)
-
-
-# display(plt1)
-# display(plt2)
-
-
-
-# ### TESTS FOR MODIFED VON NEUMANN with spurious
-
-mean = 1.5
+mean = 10.0
+phi = 2.0*pi
 bnodes = make_nodes("(4)-GLL")
 qnodes = make_nodes("(4)-GLL")
 
 dg = DGStd(1, RefElemStd(bnodes, qnodes, make_nodes("interval", "(1)-GLL")), FE_Julia.make_interval([0, 1.0], [-1, -2]))
 physics = FE_Julia.PhysProp(FE_Julia.LinAdvLogE(1, 1.0), nothing, Dict(), FE_Julia.UpwindNumFlux(), nothing, nothing, nothing)
+wavenum = collect(0.0:0.01:(4*pi))
 
-wavenum, gamma, kappa = modified_VN_spurious(dg, physics, mean)
+mu, nu = L2_wave(dg, physics, wavenum, mean, phi)
 
-plt1 = plot(wavenum, real(gamma), xlabel=L"\theta", ylabel=L"Re(\omega)", label="Standard", color=:black) # dispersion
-plt2 = plot(wavenum, imag(gamma), xlabel=L"\theta", ylabel=L"Im(\omega)", label="Standard", color=:black) # dissipation
-plt3 = plot(wavenum, real(kappa), xlabel=L"\theta", ylabel=L"\kappa", label="Standard", color=:black)
+plt1 = plot(wavenum,mu, xlabel=L"\theta", ylabel="Dissipation", label="Standard", color=:black)
+plt2 = plot(wavenum,nu, xlabel=L"\theta", ylabel="Dispersion", label="Standard", color=:black)
 
 
 dg = DGFluxDiff(1, RefElemSBP(bnodes, qnodes, make_nodes("interval", "(1)-GLL")), FE_Julia.make_interval([0, 1.0], [-1, -2]))
 physics = FE_Julia.PhysProp(FE_Julia.LinAdvLogE(1, 1.0), nothing, Dict(), FE_Julia.UpwindNumFlux(), FE_Julia.LogMeanTPFlux(), nothing, nothing)
+wavenum = collect(0.0:0.01:(4*pi))
 
-wavenum, gamma, kappa = modified_VN_spurious(dg, physics, mean)
+mu, nu = L2_wave(dg, physics, wavenum, mean, phi)
 
-plot!(plt1, wavenum, real(gamma), label="Flux Diff.", color=:red) # dispersion
-plot!(plt2, wavenum, imag(gamma), label="Flux Diff.", color=:red) # dissipation
-plot!(plt3, wavenum, real(kappa), label="Flux Diff.", color=:red)
+plot!(plt1,wavenum,mu, xlabel=L"\theta", ylabel="Dissipation", label="Flux Diff.", color=:red)
+plot!(plt2,wavenum,nu, xlabel=L"\theta", ylabel="Dispersion", label="Flux Diff.", color=:red)
+
 
 dg = DGAddRes(1, RefElemStd(bnodes, qnodes, make_nodes("interval", "(1)-GLL")), FE_Julia.make_interval([0, 1.0], [-1, -2]))
 physics = FE_Julia.PhysProp(FE_Julia.LinAdvLogE(1, 1.0), nothing, Dict(), FE_Julia.UpwindNumFlux(), nothing, nothing, FE_Julia.ResCorrEC())
+wavenum = collect(0.0:0.01:(4*pi))
 
-wavenum, gamma, kappa = modified_VN_spurious(dg, physics, mean)
+mu, nu = L2_wave(dg, physics, wavenum, mean, phi)
 
-plot!(plt1, wavenum, real(gamma), label="Res. Corr.", color=:green) # dispersion
-plot!(plt2, wavenum, imag(gamma), label="Res. Corr.", color=:green) # dissipation
-plot!(plt3, wavenum, real(kappa), label="Res. Corr.", color=:green)
+plot!(plt1,wavenum,mu, xlabel=L"\theta", ylabel="Dissipation", label="Res. Corr.", color=:green)
+plot!(plt2,wavenum,nu, xlabel=L"\theta", ylabel="Dispersion", label="Res. Corr.", color=:green)
+
 
 dg = DGArtVisc(1, RefElemStd(bnodes, qnodes, make_nodes("interval", "(1)-GLL")), FE_Julia.make_interval([0, 1.0], [-1, -2]))
 physics = FE_Julia.PhysProp(FE_Julia.LinAdvLogE(1, 1.0), nothing, Dict(), FE_Julia.UpwindNumFlux(), nothing, FE_Julia.AVdissip(nothing), nothing)
+wavenum = collect(0.0:0.01:(4*pi))
 
-wavenum, gamma, kappa = modified_VN_spurious(dg, physics, mean)
+mu, nu = L2_wave(dg, physics, wavenum, mean, phi)
 
-plot!(plt1, wavenum, real(gamma), label="Art. Visc.", color=:blue) # dispersion
-plot!(plt2, wavenum, imag(gamma), label="Art. Visc.", color=:blue) # dissipation
-plot!(plt3, wavenum, real(kappa), label="Art. Visc.", color=:blue)
+plot!(plt1,wavenum,mu, xlabel=L"\theta", ylabel="Dissipation", label="Art. Visc.", color=:blue)
+plot!(plt2,wavenum,nu, xlabel=L"\theta", ylabel="Dispersion", label="Art. Visc.", color=:blue)
+
 
 display(plt1)
 display(plt2)
-display(plt3)
+
+
+
+# ### TESTS FOR MODIFED VON NEUMANN with spurious
+
+# mean = 2.0
+# bnodes = make_nodes("(5)-GL")
+# qnodes = make_nodes("(5)-GL")
+
+# dg = DGStd(1, RefElemStd(bnodes, qnodes, make_nodes("interval", "(1)-GLL")), FE_Julia.make_interval([0, 1.0], [-1, -2]))
+# physics = FE_Julia.PhysProp(FE_Julia.LinAdvLogE(1, 1.0), nothing, Dict(), FE_Julia.UpwindNumFlux(), nothing, nothing, nothing)
+
+# wavenum, gamma, kappa = modified_VN_spurious(dg, physics, mean)
+
+# plt1 = plot(wavenum, real(gamma), xlabel=L"\theta", ylabel=L"Re(\omega)", label="Standard", color=:black, title=latexstring("\\mu =" * string(mean)), dpi=500) # dispersion
+# plt2 = plot(wavenum, imag(gamma), xlabel=L"\theta", ylabel=L"Im(\omega)", label="Standard", color=:black, title=latexstring("\\mu =" * string(mean)), dpi=500) # dissipation
+# plt3 = plot(wavenum, real(kappa), xlabel=L"\theta", ylabel=L"\kappa", label="Standard", color=:black, title=latexstring("\\mu =" * string(mean)), dpi=500)
+
+
+# dg = DGFluxDiff(1, RefElemSBP(bnodes, qnodes, make_nodes("interval", "(1)-GLL")), FE_Julia.make_interval([0, 1.0], [-1, -2]))
+# physics = FE_Julia.PhysProp(FE_Julia.LinAdvLogE(1, 1.0), nothing, Dict(), FE_Julia.UpwindNumFlux(), FE_Julia.LogMeanTPFlux(), nothing, nothing)
+
+# wavenum, gamma, kappa = modified_VN_spurious(dg, physics, mean)
+
+# plot!(plt1, wavenum, real(gamma), label="Flux Diff.", color=:red) # dispersion
+# plot!(plt2, wavenum, imag(gamma), label="Flux Diff.", color=:red) # dissipation
+# plot!(plt3, wavenum, real(kappa), label="Flux Diff.", color=:red)
+
+# dg = DGAddRes(1, RefElemStd(bnodes, qnodes, make_nodes("interval", "(1)-GLL")), FE_Julia.make_interval([0, 1.0], [-1, -2]))
+# physics = FE_Julia.PhysProp(FE_Julia.LinAdvLogE(1, 1.0), nothing, Dict(), FE_Julia.UpwindNumFlux(), nothing, nothing, FE_Julia.ResCorrEC())
+
+# wavenum, gamma, kappa = modified_VN_spurious(dg, physics, mean)
+
+# plot!(plt1, wavenum, real(gamma), label="Res. Corr.", color=:green) # dispersion
+# plot!(plt2, wavenum, imag(gamma), label="Res. Corr.", color=:green) # dissipation
+# plot!(plt3, wavenum, real(kappa), label="Res. Corr.", color=:green)
+
+# dg = DGArtVisc(1, RefElemStd(bnodes, qnodes, make_nodes("interval", "(1)-GLL")), FE_Julia.make_interval([0, 1.0], [-1, -2]))
+# physics = FE_Julia.PhysProp(FE_Julia.LinAdvLogE(1, 1.0), nothing, Dict(), FE_Julia.UpwindNumFlux(), nothing, FE_Julia.AVdissip(nothing), nothing)
+
+# wavenum, gamma, kappa = modified_VN_spurious(dg, physics, mean)
+
+# plot!(plt1, wavenum, real(gamma), label="Art. Visc.", color=:blue) # dispersion
+# plot!(plt2, wavenum, imag(gamma), label="Art. Visc.", color=:blue) # dissipation
+# plot!(plt3, wavenum, real(kappa), label="Art. Visc.", color=:blue)
+
+# display(plt1)
+# display(plt2)
+# display(plt3)
+
+# savefig(plt1, "outputs/dispersion_(5)-GL.png")
+# savefig(plt2, "outputs/dissipation(5)-GL.png")
+# savefig(plt3, "outputs/kappa_(5)-GL.png")
