@@ -153,6 +153,8 @@ function parse_parameters_numflux(param::parameters)
         numflux = ECSplitNumFlux()
     elseif param.numfluxtype == "LF"
         numflux = LFNumFlux()
+    elseif param.numfluxtype == "LFOLD"
+        numflux = LFOLDNumFlux()
     elseif param.numfluxtype == "EC_Chandrashekar"
         numflux = ECChandrashekarNumFlux()
     elseif param.numfluxtype == "ES_Chandrashekar_dissip"
