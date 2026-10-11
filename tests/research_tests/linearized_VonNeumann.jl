@@ -46,6 +46,12 @@ function linearized_VN(dg::Union{DGStd, DGFluxDiff, DGAddRes, DGArtVisc}, physic
     return wavenum, omega, modes
 end
 
+function compute_groupvel(wavenum, omega) # just central differences on dispersion curve
+    groupvel = 2.0 .* (omega[3:end] .- omega[1:end-2]) ./ (wavenum[3:end] .- wavenum[1:end-2])
+
+    return wavenum[2:end-1], groupvel
+end
+
 function linearized_nonmodal(dg::Union{DGStd, DGFluxDiff, DGAddRes}, physics::FE_Julia.PhysProp, u0::Matrix{Float64}, delta::Float64=0.001, NQ::Int64=1000)
     # First, we rebuild a DG object on the reference element
     dg = typeof(dg)(1, dg.refelem, FE_Julia.make_interval([0, 1.0], [-1, -2]))
