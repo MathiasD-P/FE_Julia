@@ -47,7 +47,7 @@ function linearized_VN(dg::Union{DGStd, DGFluxDiff, DGAddRes, DGArtVisc}, physic
 end
 
 function compute_groupvel(wavenum, omega) # just central differences on dispersion curve
-    groupvel = 2.0 .* (omega[3:end] .- omega[1:end-2]) ./ (wavenum[3:end] .- wavenum[1:end-2])
+    groupvel = (omega[3:end] .- omega[1:end-2]) ./ (wavenum[3:end] .- wavenum[1:end-2])
 
     return wavenum[2:end-1], groupvel
 end
