@@ -31,3 +31,23 @@ function residual_jacobian_Dirichlet(u, t::Float64, dg::Union{DGStd, DGFluxDiff,
 
     return ForwardDiff.jacobian(residual_wrapper, uext)
 end
+
+function residual_jacobian_Dirichlet(u, t::Float64, dg::DGArtVisc, physics::PhysProp)
+    if dg.dim !=1 || physics.PDE.dim != 1
+        error("residual_jacobian_Dirichlet only works in one dimension.")
+    end
+
+    function residual_wrapper(uext)
+        newphysics = deepcopy(physics)
+        newphysics.BChandler = Dict(-1 => uext[1,:], -2 => uext[2,:])
+        newphysics.AuxBChandler = (Dict(-1 => zeros(dg.Nstates), -2 => zeros(dg.Nstates)),) # THIS IS SETTING THE GRADIENT TIMES VISCOSITY TO ZERO
+        residual = similar(uext, size(uext,1)-2, physics.PDE.Nstates)
+        build_residual!(residual, uext[3:end,:], t, dg, newphysics)
+
+        return residual
+    end
+
+    uext = [reshape(physics.BChandler[-1], 1, physics.PDE.Nstates) ; reshape(physics.BChandler[-2], 1, physics.PDE.Nstates) ; u]
+
+    return ForwardDiff.jacobian(residual_wrapper, uext)
+end
