@@ -69,8 +69,8 @@ function linearized_nonmodal(dg::Union{DGStd, DGFluxDiff, DGAddRes}, physics::FE
         VN_mat = reduce(vcat, transpose((jacrow[1] * exp(-im * theta)) .* dg.refelem.chif[2,:] .+ (jacrow[2] * exp(im * theta)) .* dg.refelem.chif[1,:] .+ jacrow[3:end]) for jacrow in eachrow(jac))
 
        evec = refelem_proj.Ph * exp.(im .* theta .* refelem_proj.qnodes)
-       omega[thetai] = real(evev' * VN_mat * evec) / (evec' * dg.relem.M * evec)
+       omega[thetai] = real(evec' * dg.refelem.M * VN_mat * evec)[1,1] / (evec' * dg.refelem.M * evec)[1,1]
     end
 
-    return omega
+    return wavenum, omega
 end
