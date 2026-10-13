@@ -69,7 +69,29 @@ function linearized_nonmodal(dg::Union{DGStd, DGFluxDiff, DGAddRes}, physics::FE
         VN_mat = reduce(vcat, transpose((jacrow[1] * exp(-im * theta)) .* dg.refelem.chif[2,:] .+ (jacrow[2] * exp(im * theta)) .* dg.refelem.chif[1,:] .+ jacrow[3:end]) for jacrow in eachrow(jac))
 
        evec = refelem_proj.Ph * exp.(im .* theta .* refelem_proj.qnodes)
-       omega[thetai] = real(evec' * dg.refelem.M * VN_mat * evec)[1,1] / (evec' * dg.refelem.M * evec)[1,1]
+       omega[thetai] = real(evec' * refelem_proj.M * VN_mat * evec)[1,1] / (evec' * refelem_proj.M * evec)[1,1]
+    end
+
+    return wavenum, omega
+end
+
+function linearized_nonmodal_LIANG(dg::Union{DGStd, DGFluxDiff, DGAddRes}, physics::FE_Julia.PhysProp, u0::Matrix{Float64}, delta::Float64=0.001, NQ::Int64=1000)
+    # First, we rebuild a DG object on the reference element
+    dg = typeof(dg)(1, dg.refelem, FE_Julia.make_interval([0, 1.0], [-1, -2]))
+
+    # preallocate measured quantities
+    wavenum = collect(0.0:delta:(dg.refelem.Nbnodes*pi))
+    omega = zeros(ComplexF64, size(wavenum))
+
+    for thetai in 2:length(wavenum)
+        theta = wavenum[thetai]
+
+        # Assemble VN matrix
+        jac = FE_Julia.residual_jacobian_Dirichlet(u0, 0.0, dg, physics)
+        VN_mat = reduce(vcat, transpose((jacrow[1] * exp(-im * theta)) .* dg.refelem.chif[2,:] .+ (jacrow[2] * exp(im * theta)) .* dg.refelem.chif[1,:] .+ jacrow[3:end]) for jacrow in eachrow(jac))
+
+       evec = exp.(im .* theta .* dg.bpts)
+       omega[thetai] = real(evec' * dg.refelem.M * VN_mat * evec)[1,1]
     end
 
     return wavenum, omega
