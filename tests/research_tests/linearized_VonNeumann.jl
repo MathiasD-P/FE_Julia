@@ -52,7 +52,7 @@ function compute_groupvel(wavenum, omega) # just central differences on dispersi
     return wavenum[2:end-1], groupvel
 end
 
-function linearized_nonmodal(dg::Union{DGStd, DGFluxDiff, DGAddRes}, physics::FE_Julia.PhysProp, u0::Matrix{Float64}, delta::Float64=0.001, NQ::Int64=1000)
+function linearized_nonmodal(dg::Union{DGStd, DGFluxDiff, DGAddRes, DGArtVisc}, physics::FE_Julia.PhysProp, u0::Matrix{Float64}, delta::Float64=0.001, NQ::Int64=1000)
     # First, we rebuild a DG object on the reference element
     dg = typeof(dg)(1, dg.refelem, FE_Julia.make_interval([0, 1.0], [-1, -2]))
     refelem_proj = RefElemStd(dg.refelem.bnodestype, FE_Julia.Tensorprod_nodes("GL", NQ, 1), dg.refelem.fnodestype)
@@ -75,7 +75,7 @@ function linearized_nonmodal(dg::Union{DGStd, DGFluxDiff, DGAddRes}, physics::FE
     return wavenum, omega
 end
 
-function linearized_nonmodal_LIANG(dg::Union{DGStd, DGFluxDiff, DGAddRes}, physics::FE_Julia.PhysProp, u0::Matrix{Float64}, delta::Float64=0.001, NQ::Int64=1000)
+function linearized_nonmodal_LIANG(dg::Union{DGStd, DGFluxDiff, DGAddRes, DGArtVisc}, physics::FE_Julia.PhysProp, u0::Matrix{Float64}, delta::Float64=0.001, NQ::Int64=1000)
     # First, we rebuild a DG object on the reference element
     dg = typeof(dg)(1, dg.refelem, FE_Julia.make_interval([0, 1.0], [-1, -2]))
 
