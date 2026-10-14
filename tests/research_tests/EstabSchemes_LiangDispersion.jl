@@ -30,22 +30,22 @@ function research_test(prange, ref, physics, ic, nodetype, vglims)
         outavi = linearized_VN(dgavi, physics, ic.(dgavi.bpts))
         outadr = linearized_VN(dgadr, physics, ic.(dgadr.bpts))
 
-        plot!(plt, outstd[1] ./ (p+1), real(outstd[2])./ (p+1), color=:black, label=false)
-        plot!(plt, outfdf[1] ./ (p+1), real(outfdf[2])./ (p+1), color=:red, label=false)
-        plot!(plt, outavi[1] ./ (p+1), real(outavi[2])./ (p+1), color=:blue, label=false)
-        plot!(plt, outadr[1] ./ (p+1), real(outadr[2])./ (p+1), color=:green, label=false)
+        plot!(plt, outstd[1] ./ (p+1), real(outstd[2])./ (p+1), color=:black, label="DG " * L"(p="*string(p) *")")
+        plot!(plt, outfdf[1] ./ (p+1), real(outfdf[2])./ (p+1), color=:red, label="FD " * L"(p="*string(p) *")", linestyle=:dashdot)
+        plot!(plt, outavi[1] ./ (p+1), real(outavi[2])./ (p+1), color=:blue, label="AV " * L"(p="*string(p) *")", linestyle=:dashdotdot)
+        plot!(plt, outadr[1] ./ (p+1), real(outadr[2])./ (p+1), color=:green, label="RC " * L"(p="*string(p) *")", linestyle=:dash)
 
         plot!(plt1, outstd[1] ./ (p+1), imag(outstd[2])./ (p+1), color=:blue)
         plot!(plt1, outfdf[1] ./ (p+1), imag(outfdf[2])./ (p+1), color=:red)
 
         wavenum, groupvel = compute_groupvel(outstd[1], real(outstd[2]))
-        plot!(plt2, wavenum./ (p+1), groupvel, color=:black, label=false)
+        plot!(plt2, wavenum./ (p+1), groupvel, color=:black, label="DG " * L"(p="*string(p) *")")
         wavenum, groupvel = compute_groupvel(outfdf[1], real(outfdf[2]))
-        plot!(plt2, wavenum./ (p+1), groupvel, color=:red, label=false)
+        plot!(plt2, wavenum./ (p+1), groupvel, color=:red, label="FD " * L"(p="*string(p) *")", linestyle=:dashdot)
         wavenum, groupvel = compute_groupvel(outavi[1], real(outavi[2]))
-        plot!(plt2, wavenum./ (p+1), groupvel, color=:blue, label=false)
+        plot!(plt2, wavenum./ (p+1), groupvel, color=:blue, label="AV " * L"(p="*string(p) *")", linestyle=:dashdotdot)
         wavenum, groupvel = compute_groupvel(outadr[1], real(outadr[2]))
-        plot!(plt2, wavenum./ (p+1), groupvel, color=:green, label=false)
+        plot!(plt2, wavenum./ (p+1), groupvel, color=:green, label="RC " * L"(p="*string(p) *")", linestyle=:dash)
     end
 
     plot!(plt, [0,2], [0, 2*ref], color=:black, linestyle=:dot, label=false)
@@ -85,23 +85,79 @@ physics = FE_Julia.PhysProp(FE_Julia.Burgers(1), nothing, Dict(-1=> [1.5], -2=>[
 ic = x -> 1.0 - 0.5 * (2*x-1)
 ref = 0.910239226627
 nodetype = "GLL"
-prange = 3:5
+prange = 3:3
 vglims = (0.88,0.95)
 pltdisp, pltvg = research_test(prange, ref, physics, ic, nodetype, vglims)
 
 display(pltdisp)
 display(pltvg)
+savefig(pltdisp, "outputs/linear_p" * string(prange[1]) * "_dispers_" *nodetype * ".pdf")
+savefig(pltvg, "outputs/linear_p" * string(prange[1]) * "_groupvel_" *nodetype * ".pdf")
 
 physics = FE_Julia.PhysProp(FE_Julia.Burgers(1), nothing, Dict(-1=> [1.5], -2=>[0.5]), FE_Julia.LFNumFlux(), FE_Julia.ECSplitTPFlux(), FE_Julia.AVdissip(nothing), FE_Julia.ResCorrEC())
 ic = x -> 1.0 - 0.5 * (2*x-1)
 ref = 0.910239226627
 nodetype = "GL"
-prange = 3:5
+prange = 3:3
 vglims = (0.88,0.95)
 pltdisp, pltvg = research_test(prange, ref, physics, ic, nodetype, vglims)
 
 display(pltdisp)
 display(pltvg)
+savefig(pltdisp, "outputs/linear_p" * string(prange[1]) * "_dispers_" *nodetype * ".pdf")
+savefig(pltvg, "outputs/linear_p" * string(prange[1]) * "_groupvel_" *nodetype * ".pdf")
+
+physics = FE_Julia.PhysProp(FE_Julia.Burgers(1), nothing, Dict(-1=> [1.5], -2=>[0.5]), FE_Julia.LFNumFlux(), FE_Julia.ECSplitTPFlux(), FE_Julia.AVdissip(nothing), FE_Julia.ResCorrEC())
+ic = x -> 1.0 - 0.5 * (2*x-1)
+ref = 0.910239226627
+nodetype = "GLL"
+prange = 4:4
+vglims = (0.88,0.95)
+pltdisp, pltvg = research_test(prange, ref, physics, ic, nodetype, vglims)
+
+display(pltdisp)
+display(pltvg)
+savefig(pltdisp, "outputs/linear_p" * string(prange[1]) * "_dispers_" *nodetype * ".pdf")
+savefig(pltvg, "outputs/linear_p" * string(prange[1]) * "_groupvel_" *nodetype * ".pdf")
+
+physics = FE_Julia.PhysProp(FE_Julia.Burgers(1), nothing, Dict(-1=> [1.5], -2=>[0.5]), FE_Julia.LFNumFlux(), FE_Julia.ECSplitTPFlux(), FE_Julia.AVdissip(nothing), FE_Julia.ResCorrEC())
+ic = x -> 1.0 - 0.5 * (2*x-1)
+ref = 0.910239226627
+nodetype = "GL"
+prange = 4:4
+vglims = (0.88,0.95)
+pltdisp, pltvg = research_test(prange, ref, physics, ic, nodetype, vglims)
+
+display(pltdisp)
+display(pltvg)
+savefig(pltdisp, "outputs/linear_p" * string(prange[1]) * "_dispers_" *nodetype * ".pdf")
+savefig(pltvg, "outputs/linear_p" * string(prange[1]) * "_groupvel_" *nodetype * ".pdf")
+
+physics = FE_Julia.PhysProp(FE_Julia.Burgers(1), nothing, Dict(-1=> [1.5], -2=>[0.5]), FE_Julia.LFNumFlux(), FE_Julia.ECSplitTPFlux(), FE_Julia.AVdissip(nothing), FE_Julia.ResCorrEC())
+ic = x -> 1.0 - 0.5 * (2*x-1)
+ref = 0.910239226627
+nodetype = "GLL"
+prange = 5:5
+vglims = (0.88,0.95)
+pltdisp, pltvg = research_test(prange, ref, physics, ic, nodetype, vglims)
+
+display(pltdisp)
+display(pltvg)
+savefig(pltdisp, "outputs/linear_p" * string(prange[1]) * "_dispers_" *nodetype * ".pdf")
+savefig(pltvg, "outputs/linear_p" * string(prange[1]) * "_groupvel_" *nodetype * ".pdf")
+
+physics = FE_Julia.PhysProp(FE_Julia.Burgers(1), nothing, Dict(-1=> [1.5], -2=>[0.5]), FE_Julia.LFNumFlux(), FE_Julia.ECSplitTPFlux(), FE_Julia.AVdissip(nothing), FE_Julia.ResCorrEC())
+ic = x -> 1.0 - 0.5 * (2*x-1)
+ref = 0.910239226627
+nodetype = "GL"
+prange = 5:5
+vglims = (0.88,0.95)
+pltdisp, pltvg = research_test(prange, ref, physics, ic, nodetype, vglims)
+
+display(pltdisp)
+display(pltvg)
+savefig(pltdisp, "outputs/linear_p" * string(prange[1]) * "_dispers_" *nodetype * ".pdf")
+savefig(pltvg, "outputs/linear_p" * string(prange[1]) * "_groupvel_" *nodetype * ".pdf")
 
 
 # # Cubic state
@@ -110,12 +166,43 @@ physics = FE_Julia.PhysProp(FE_Julia.Burgers(1), nothing, Dict(-1=> [0.5], -2=>[
 ic = x -> 1.0 + 0.5 * (2*x-1)^3
 ref = 0.960116273343
 nodetype = "GLL"
+prange = 3:3
+vglims = (0.92, 1.01)
+pltdisp, pltvg = research_test(prange, ref, physics, ic, nodetype, vglims)
+
+display(pltdisp)
+display(pltvg)
+
+savefig(pltdisp, "outputs/cubic_p" * string(prange[1]) * "_dispers_" *nodetype * ".pdf")
+savefig(pltvg, "outputs/cubic_p" * string(prange[1]) * "_groupvel_" *nodetype * ".pdf")
+
+physics = FE_Julia.PhysProp(FE_Julia.Burgers(1), nothing, Dict(-1=> [0.5], -2=>[1.5]), FE_Julia.LFNumFlux(), FE_Julia.ECSplitTPFlux(), FE_Julia.AVdissip(nothing), FE_Julia.ResCorrEC())
+ic = x -> 1.0 + 0.5 * (2*x-1)^3
+ref = 0.960116273343
+nodetype = "GL"
+prange = 3:3
+vglims = (0.92, 1.01)
+pltdisp, pltvg = research_test(prange, ref, physics, ic, nodetype, vglims)
+
+display(pltdisp)
+display(pltvg)
+
+savefig(pltdisp, "outputs/cubic_p" * string(prange[1]) * "_dispers_" *nodetype * ".pdf")
+savefig(pltvg, "outputs/cubic_p" * string(prange[1]) * "_groupvel_" *nodetype * ".pdf")
+
+physics = FE_Julia.PhysProp(FE_Julia.Burgers(1), nothing, Dict(-1=> [0.5], -2=>[1.5]), FE_Julia.LFNumFlux(), FE_Julia.ECSplitTPFlux(), FE_Julia.AVdissip(nothing), FE_Julia.ResCorrEC())
+ic = x -> 1.0 + 0.5 * (2*x-1)^3
+ref = 0.960116273343
+nodetype = "GLL"
 prange = 4:4
 vglims = (0.92, 1.01)
 pltdisp, pltvg = research_test(prange, ref, physics, ic, nodetype, vglims)
 
 display(pltdisp)
 display(pltvg)
+
+savefig(pltdisp, "outputs/cubic_p" * string(prange[1]) * "_dispers_" *nodetype * ".pdf")
+savefig(pltvg, "outputs/cubic_p" * string(prange[1]) * "_groupvel_" *nodetype * ".pdf")
 
 physics = FE_Julia.PhysProp(FE_Julia.Burgers(1), nothing, Dict(-1=> [0.5], -2=>[1.5]), FE_Julia.LFNumFlux(), FE_Julia.ECSplitTPFlux(), FE_Julia.AVdissip(nothing), FE_Julia.ResCorrEC())
 ic = x -> 1.0 + 0.5 * (2*x-1)^3
@@ -128,8 +215,69 @@ pltdisp, pltvg = research_test(prange, ref, physics, ic, nodetype, vglims)
 display(pltdisp)
 display(pltvg)
 
+savefig(pltdisp, "outputs/cubic_p" * string(prange[1]) * "_dispers_" *nodetype * ".pdf")
+savefig(pltvg, "outputs/cubic_p" * string(prange[1]) * "_groupvel_" *nodetype * ".pdf")
+
+physics = FE_Julia.PhysProp(FE_Julia.Burgers(1), nothing, Dict(-1=> [0.5], -2=>[1.5]), FE_Julia.LFNumFlux(), FE_Julia.ECSplitTPFlux(), FE_Julia.AVdissip(nothing), FE_Julia.ResCorrEC())
+ic = x -> 1.0 + 0.5 * (2*x-1)^3
+ref = 0.960116273343
+nodetype = "GLL"
+prange = 5:5
+vglims = (0.92, 1.01)
+pltdisp, pltvg = research_test(prange, ref, physics, ic, nodetype, vglims)
+
+display(pltdisp)
+display(pltvg)
+
+savefig(pltdisp, "outputs/cubic_p" * string(prange[1]) * "_dispers_" *nodetype * ".pdf")
+savefig(pltvg, "outputs/cubic_p" * string(prange[1]) * "_groupvel_" *nodetype * ".pdf")
+
+physics = FE_Julia.PhysProp(FE_Julia.Burgers(1), nothing, Dict(-1=> [0.5], -2=>[1.5]), FE_Julia.LFNumFlux(), FE_Julia.ECSplitTPFlux(), FE_Julia.AVdissip(nothing), FE_Julia.ResCorrEC())
+ic = x -> 1.0 + 0.5 * (2*x-1)^3
+ref = 0.960116273343
+nodetype = "GL"
+prange = 5:5
+vglims = (0.92, 1.01)
+pltdisp, pltvg = research_test(prange, ref, physics, ic, nodetype, vglims)
+
+display(pltdisp)
+display(pltvg)
+
+savefig(pltdisp, "outputs/cubic_p" * string(prange[1]) * "_dispers_" *nodetype * ".pdf")
+savefig(pltvg, "outputs/cubic_p" * string(prange[1]) * "_groupvel_" *nodetype * ".pdf")
+
+
 
 # # sin state
+
+physics = FE_Julia.PhysProp(FE_Julia.Burgers(1), nothing, Dict(-1=> [0.5], -2=>[1.5]), FE_Julia.LFNumFlux(), FE_Julia.ECSplitTPFlux(), FE_Julia.AVdissip(nothing), FE_Julia.ResCorrEC())
+ic = x -> 1.0 + 0.5*sin(0.5*pi*(2*x-1))
+ref = 0.866025403784
+nodetype = "GLL"
+prange = 3:3
+vglims = (0.84, 0.88)
+pltdisp, pltvg = research_test(prange, ref, physics, ic, nodetype, vglims)
+
+display(pltdisp)
+display(pltvg)
+
+savefig(pltdisp, "outputs/sin_p" * string(prange[1]) * "_dispers_" *nodetype * ".pdf")
+savefig(pltvg, "outputs/sin_p" * string(prange[1]) * "_groupvel_" *nodetype * ".pdf")
+
+
+physics = FE_Julia.PhysProp(FE_Julia.Burgers(1), nothing, Dict(-1=> [0.5], -2=>[1.5]), FE_Julia.LFNumFlux(), FE_Julia.ECSplitTPFlux(), FE_Julia.AVdissip(nothing), FE_Julia.ResCorrEC())
+ic = x -> 1.0 + 0.5*sin(0.5*pi*(2*x-1))
+ref = 0.866025403784
+nodetype = "GL"
+prange = 3:3
+vglims = (0.84, 0.88)
+pltdisp, pltvg = research_test(prange, ref, physics, ic, nodetype, vglims)
+
+display(pltdisp)
+display(pltvg)
+
+savefig(pltdisp, "outputs/sin_p" * string(prange[1]) * "_dispers_" *nodetype * ".pdf")
+savefig(pltvg, "outputs/sin_p" * string(prange[1]) * "_groupvel_" *nodetype * ".pdf")
 
 physics = FE_Julia.PhysProp(FE_Julia.Burgers(1), nothing, Dict(-1=> [0.5], -2=>[1.5]), FE_Julia.LFNumFlux(), FE_Julia.ECSplitTPFlux(), FE_Julia.AVdissip(nothing), FE_Julia.ResCorrEC())
 ic = x -> 1.0 + 0.5*sin(0.5*pi*(2*x-1))
@@ -142,6 +290,9 @@ pltdisp, pltvg = research_test(prange, ref, physics, ic, nodetype, vglims)
 display(pltdisp)
 display(pltvg)
 
+savefig(pltdisp, "outputs/sin_p" * string(prange[1]) * "_dispers_" *nodetype * ".pdf")
+savefig(pltvg, "outputs/sin_p" * string(prange[1]) * "_groupvel_" *nodetype * ".pdf")
+
 
 physics = FE_Julia.PhysProp(FE_Julia.Burgers(1), nothing, Dict(-1=> [0.5], -2=>[1.5]), FE_Julia.LFNumFlux(), FE_Julia.ECSplitTPFlux(), FE_Julia.AVdissip(nothing), FE_Julia.ResCorrEC())
 ic = x -> 1.0 + 0.5*sin(0.5*pi*(2*x-1))
@@ -153,3 +304,36 @@ pltdisp, pltvg = research_test(prange, ref, physics, ic, nodetype, vglims)
 
 display(pltdisp)
 display(pltvg)
+
+savefig(pltdisp, "outputs/sin_p" * string(prange[1]) * "_dispers_" *nodetype * ".pdf")
+savefig(pltvg, "outputs/sin_p" * string(prange[1]) * "_groupvel_" *nodetype * ".pdf")
+
+physics = FE_Julia.PhysProp(FE_Julia.Burgers(1), nothing, Dict(-1=> [0.5], -2=>[1.5]), FE_Julia.LFNumFlux(), FE_Julia.ECSplitTPFlux(), FE_Julia.AVdissip(nothing), FE_Julia.ResCorrEC())
+ic = x -> 1.0 + 0.5*sin(0.5*pi*(2*x-1))
+ref = 0.866025403784
+nodetype = "GLL"
+prange = 5:5
+vglims = (0.84, 0.88)
+pltdisp, pltvg = research_test(prange, ref, physics, ic, nodetype, vglims)
+
+display(pltdisp)
+display(pltvg)
+
+savefig(pltdisp, "outputs/sin_p" * string(prange[1]) * "_dispers_" *nodetype * ".pdf")
+savefig(pltvg, "outputs/sin_p" * string(prange[1]) * "_groupvel_" *nodetype * ".pdf")
+
+
+physics = FE_Julia.PhysProp(FE_Julia.Burgers(1), nothing, Dict(-1=> [0.5], -2=>[1.5]), FE_Julia.LFNumFlux(), FE_Julia.ECSplitTPFlux(), FE_Julia.AVdissip(nothing), FE_Julia.ResCorrEC())
+ic = x -> 1.0 + 0.5*sin(0.5*pi*(2*x-1))
+ref = 0.866025403784
+nodetype = "GL"
+prange = 5:5
+vglims = (0.84, 0.88)
+pltdisp, pltvg = research_test(prange, ref, physics, ic, nodetype, vglims)
+
+display(pltdisp)
+display(pltvg)
+
+savefig(pltdisp, "outputs/sin_p" * string(prange[1]) * "_dispers_" *nodetype * ".pdf")
+savefig(pltvg, "outputs/sin_p" * string(prange[1]) * "_groupvel_" *nodetype * ".pdf")
+
