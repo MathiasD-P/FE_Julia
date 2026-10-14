@@ -109,22 +109,22 @@ function plot_results(interrors, DGnames, p)
     for myDG in DGnames
 
         if myDG == "DGStd"
-            mylabel = "Standard DG"
+            mylabel = "DG"
             mymarker = :circle
             mycolor = :black
             mymarkersize = 5
         elseif myDG == "DGFluxDiff"
-            mylabel = "Flux Differencing"
+            mylabel = "FD"
             mymarker = :utriangle
             mycolor = :red
             mymarkersize = 5
         elseif myDG == "DGArtVisc"
-            mylabel = "Artificial Viscosity"
+            mylabel = "AV"
             mymarker = :star5
             mycolor = :blue
             mymarkersize = 5
         elseif myDG == "DGAddRes"
-            mylabel = "Dealiased Split"
+            mylabel = "RC"
             mymarker = :diamond
             mycolor = :green
             mymarkersize = 5
@@ -140,10 +140,37 @@ function plot_results(interrors, DGnames, p)
 end
 
 DGnames = ["DGStd", "DGFluxDiff", "DGArtVisc", "DGAddRes"]
+p = 4
+Nrefinements = 8
+node_name = "GLL"
+
+errors = research_test(p, Nrefinements, node_name, DGnames)
+plt = plot_results(errors, DGnames, p)
+savefig(plt, "outputs/L2error" * node_name * "p" * string(p) * ".pdf")
+
+DGnames = ["DGStd", "DGFluxDiff", "DGArtVisc", "DGAddRes"]
+p = 4
+Nrefinements = 8
+node_name = "GL"
+
+errors = research_test(p, Nrefinements, node_name, DGnames)
+plt = plot_results(errors, DGnames, p)
+savefig(plt, "outputs/L2error" * node_name * "p" * string(p) * ".pdf")
+
+DGnames = ["DGStd", "DGFluxDiff", "DGArtVisc", "DGAddRes"]
 p = 5
 Nrefinements = 8
 node_name = "GLL"
 
 errors = research_test(p, Nrefinements, node_name, DGnames)
 plt = plot_results(errors, DGnames, p)
-# savefig(plt, "L2error" * node_name * "p" * string(p) * ".pdf")
+savefig(plt, "outputs/L2error" * node_name * "p" * string(p) * ".pdf")
+
+DGnames = ["DGStd", "DGFluxDiff", "DGArtVisc", "DGAddRes"]
+p = 5
+Nrefinements = 8
+node_name = "GL"
+
+errors = research_test(p, Nrefinements, node_name, DGnames)
+plt = plot_results(errors, DGnames, p)
+savefig(plt, "outputs/L2error" * node_name * "p" * string(p) * ".pdf")
