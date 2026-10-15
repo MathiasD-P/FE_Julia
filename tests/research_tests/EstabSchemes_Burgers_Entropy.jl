@@ -14,7 +14,7 @@ default(
     legendfont = font(8, "Computer Modern")
 )
 
-function make_parameters(myDG, p, node_name, exact_mass=false)
+function make_parameters(myDG, p, node_name, Nel)
 
     param = parameters(
                             pdetype="Burgers",
@@ -25,8 +25,8 @@ function make_parameters(myDG, p, node_name, exact_mass=false)
                             fnodes="(1)-GL",
                             refelem="interval",
                             domain="unit_interval_linear",
-                            Neldim=20,
-                            numfluxtype="LFOLD",
+                            Neldim=Nel,
+                            numfluxtype="LF",
                             ICname="sin_1state",
                             k=2*pi,
                             phi=0.1,
@@ -56,14 +56,14 @@ function make_parameters(myDG, p, node_name, exact_mass=false)
     return param
 end
 
-function research_test(p, node_name, DGnames)
+function research_test(p, Nel, node_name, DGnames)
     # Construct parameters
     params = Dict()
     for myDG in DGnames
-        params[myDG] = make_parameters(myDG, p, node_name)
+        params[myDG] = make_parameters(myDG, p, node_name, Nel)
     end
 
-    paramExact = make_parameters("DGExact", p, node_name)
+    paramExact = make_parameters("DGExact", p, node_name, Nel)
 
     # Testing starts here
     outputs = Dict()
@@ -141,23 +141,22 @@ function plot_results(outputs, DGnames, ylims)
     return plt_ent
 end
 
-function plot_solutions(DGnames, t, Nsteps)
+function plot_solutions(DGnames, t, Nsteps, Nel)
     Delta = 0.15
 
     # Construct parameters
     params = Dict()
     for myDG in DGnames
-        params[myDG] = make_parameters(myDG, p, node_name)
+        params[myDG] = make_parameters(myDG, p, node_name, Nel)
         params[myDG].dt = t / Nsteps
         params[myDG].Nsteps = Nsteps
     end
 
-    paramExact = make_parameters("DGExact", p, node_name)
+    paramExact = make_parameters("DGExact", p, node_name, Nel)
     paramExact.dt = t / Nsteps
     paramExact.Nsteps = Nsteps
 
-    paramRef = make_parameters("DGStd", 1, "GLL")
-    paramRef.Neldim=2000
+    paramRef = make_parameters("DGStd", 1, "GLL", 2000)
     paramRef.dt = t / 20000
     paramRef.Nsteps = 20000
     paramRef.ODE_solver = "SSPRRK33"
@@ -180,22 +179,22 @@ function plot_solutions(DGnames, t, Nsteps)
     
     for myDG in DGnames
         if myDG == "DGStd"
-            mylabel = "Standard DG"
+            mylabel = "DG"
             mymarker = :circle
             mycolor = :black
             mymarkersize = 5
         elseif myDG == "DGFluxDiff"
-            mylabel = "Flux Differencing"
+            mylabel = "FD"
             mymarker = :utriangle
             mycolor = :red
             mymarkersize = 5
         elseif myDG == "DGArtVisc"
-            mylabel = "Artificial Viscosity"
+            mylabel = "AV"
             mymarker = :star5
             mycolor = :blue
             mymarkersize = 5
         elseif myDG == "DGAddRes"
-            mylabel = "Residual Correction"
+            mylabel = "RC"
             mymarker = :diamond
             mycolor = :green
             mymarkersize = 5
@@ -226,8 +225,8 @@ function plot_solutions(DGnames, t, Nsteps)
     s[abs.(s) .> 1e10] .= 0
     markerslicer = unique(i -> round.(Int, s ./ Delta)[i], eachindex(s))
 
-    plot!(plt_sol, epts, solution, label=false, color=:orange)
-    scatter!(plt_sol, epts[markerslicer], solution[markerslicer], label="Exact Integration", color=:orange, markershape=:rect, markersize=3, markerstrokewidth = 0)
+    # plot!(plt_sol, epts, solution, label=false, color=:orange)
+    # scatter!(plt_sol, epts[markerslicer], solution[markerslicer], label="Exact Integration", color=:orange, markershape=:rect, markersize=3, markerstrokewidth = 0)
      
     # We also plot the Ref solution
     chie, _, epts = FE_Julia.extract_volume_quadrature(outputs["Ref"]["dg"].refelem.bnodestype, make_nodes(paramRef.enodes))
@@ -242,11 +241,57 @@ end
 
 DGnames = ["DGStd", "DGFluxDiff", "DGArtVisc", "DGAddRes"]
 p = 5
+Nel = 20
 node_name = "GLL"
-outputs = research_test(p, node_name, DGnames)
+outputs = research_test(p, Nel, node_name, DGnames)
 
 plt_ent = plot_results(outputs, DGnames, (0,1.1))
 display(plt_ent)
+savefig(plt_ent, "outputs/20_entropy_" * node_name * "_p" * string(p) * ".pdf")
 
-plt_sol = plot_solutions(["DGFluxDiff", "DGArtVisc", "DGAddRes"], 3.0, 20000)
+plt_sol = plot_solutions(["DGFluxDiff", "DGArtVisc", "DGAddRes"], 3.0, 20000, Nel)
 display(plt_sol)
+savefig(plt_sol, "outputs/20_solutions_" * node_name * "_p" * string(p) * ".pdf")
+
+DGnames = ["DGStd", "DGFluxDiff", "DGArtVisc", "DGAddRes"]
+p = 5
+Nel = 20
+node_name = "GL"
+outputs = research_test(p, Nel, node_name, DGnames)
+
+plt_ent = plot_results(outputs, DGnames, (0,1.1))
+display(plt_ent)
+savefig(plt_ent, "outputs/20_entropy_" * node_name * "_p" * string(p) * ".pdf")
+
+plt_sol = plot_solutions(["DGFluxDiff", "DGArtVisc", "DGAddRes"], 3.0, 20000, Nel)
+display(plt_sol)
+savefig(plt_sol, "outputs/20_solutions_" * node_name * "_p" * string(p) * ".pdf")
+
+
+DGnames = ["DGStd", "DGFluxDiff", "DGArtVisc", "DGAddRes"]
+p = 5
+Nel = 100
+node_name = "GLL"
+outputs = research_test(p, Nel, node_name, DGnames)
+
+plt_ent = plot_results(outputs, DGnames, (0,1.1))
+display(plt_ent)
+savefig(plt_ent, "outputs/100_entropy_" * node_name * "_p" * string(p) * ".pdf")
+
+plt_sol = plot_solutions(["DGFluxDiff", "DGArtVisc", "DGAddRes"], 3.0, 20000, Nel)
+display(plt_sol)
+savefig(plt_sol, "outputs/100_solutions_" * node_name * "_p" * string(p) * ".pdf")
+
+DGnames = ["DGStd", "DGFluxDiff", "DGArtVisc", "DGAddRes"]
+p = 5
+Nel = 100
+node_name = "GL"
+outputs = research_test(p, Nel, node_name, DGnames)
+
+plt_ent = plot_results(outputs, DGnames, (0,1.1))
+display(plt_ent)
+savefig(plt_ent, "outputs/100_entropy_" * node_name * "_p" * string(p) * ".pdf")
+
+plt_sol = plot_solutions(["DGFluxDiff", "DGArtVisc", "DGAddRes"], 3.0, 20000, Nel)
+display(plt_sol)
+savefig(plt_sol, "outputs/100_solutions_" * node_name * "_p" * string(p) * ".pdf")
