@@ -33,10 +33,10 @@ function make_parameters(myDG, p, N, node_name)
                             av=0.01,
                             BCname="periodic",
                             ODE_solver="LSERK45",
-                            Nsteps = 1000,
+                            Nsteps = 1,
                             calc_entropy=true)
     
-    param.dt = 0.6 * (1.0 / param.k) / param.Nsteps
+    param.dt = 0.001 * (1.0 / param.k) / param.Nsteps
 
     if myDG == "DGExact"
         param.dgtype = "DGStd"
@@ -74,15 +74,22 @@ function research_test(p, Nrefinements, node_name, DGnames)
         end
 
         # Testing starts here
-        outputExact = set_up_and_solve(paramExact)
+        ic, physics, dg = set_up_problem(paramExact)
+        u0 = initialize_states(ic, dg, physics.PDE)
+        resExact = similar(u0)
+        FE_Julia.build_residual!(resExact, u0, 0.0, dg, physics)
 
         for myDG in DGnames
-            output = set_up_and_solve(params[myDG])
-            delta = output["solution"] .- outputExact["solution"]
-            delta = sum(FE_Julia.block_matmul(M, delta, Nel) .* delta) * output["dg"].mesh.J[1][1] # uniform mesh
+            ic, physics, dg = set_up_problem(params[myDG])
+            u0 = initialize_states(ic, dg, physics.PDE)
+            res = similar(u0)
+            FE_Julia.build_residual!(res, u0, 0.0, dg, physics)
+
+            delta = res .- resExact
+            delta = sum(FE_Julia.block_matmul(M, delta, Nel) .* delta) * dg.mesh.J[1][1] # uniform mesh
 
             interrors[myDG][iref,2] = sqrt(delta)
-            interrors[myDG][iref,1] = output["dg"].DOF
+            interrors[myDG][iref,1] = dg.DOF
             
             if iref != 1
                 interrors[myDG][iref, 3] = log(interrors[myDG][iref,2] / interrors[myDG][iref-1,2]) / log(interrors[myDG][iref,1] / interrors[myDG][iref-1,1])
@@ -112,22 +119,22 @@ function plot_results(interrors, DGnames, p)
     for myDG in DGnames
 
        if myDG == "DGStd"
-            mylabel = "Standard DG"
+            mylabel = "DG"
             mymarker = :circle
             mycolor = :black
             mymarkersize = 5
         elseif myDG == "DGFluxDiff"
-            mylabel = "Flux Differencing"
+            mylabel = "FD"
             mymarker = :utriangle
             mycolor = :red
             mymarkersize = 5
         elseif myDG == "DGArtVisc"
-            mylabel = "Artificial Viscosity"
+            mylabel = "AV"
             mymarker = :star5
             mycolor = :blue
             mymarkersize = 5
         elseif myDG == "DGAddRes"
-            mylabel = "Residual Correction"
+            mylabel = "RC"
             mymarker = :diamond
             mycolor = :green
             mymarkersize = 5
@@ -146,9 +153,37 @@ function plot_results(interrors, DGnames, p)
 end
 
 DGnames = ["DGStd", "DGFluxDiff", "DGArtVisc", "DGAddRes"]
+p = 4
+Nrefinements = 8
+node_name = "GLL"
+
+interrors = research_test(p, Nrefinements, node_name, DGnames)
+plt = plot_results(interrors, DGnames, p)
+savefig(plt, "outputs/ierror" * node_name * "p" * string(p) * ".pdf")
+
+DGnames = ["DGStd", "DGFluxDiff", "DGArtVisc", "DGAddRes"]
+p = 4
+Nrefinements = 6
+node_name = "GL"
+
+interrors = research_test(p, Nrefinements, node_name, DGnames)
+plt = plot_results(interrors, DGnames, p)
+savefig(plt, "outputs/ierror" * node_name * "p" * string(p) * ".pdf")
+
+DGnames = ["DGStd", "DGFluxDiff", "DGArtVisc", "DGAddRes"]
 p = 5
 Nrefinements = 8
 node_name = "GLL"
 
 interrors = research_test(p, Nrefinements, node_name, DGnames)
 plt = plot_results(interrors, DGnames, p)
+savefig(plt, "outputs/ierror" * node_name * "p" * string(p) * ".pdf")
+
+DGnames = ["DGStd", "DGFluxDiff", "DGArtVisc", "DGAddRes"]
+p = 5
+Nrefinements = 6
+node_name = "GL"
+
+interrors = research_test(p, Nrefinements, node_name, DGnames)
+plt = plot_results(interrors, DGnames, p)
+savefig(plt, "outputs/ierror" * node_name * "p" * string(p) * ".pdf")
