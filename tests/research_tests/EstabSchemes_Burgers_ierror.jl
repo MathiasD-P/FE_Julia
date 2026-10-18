@@ -78,12 +78,14 @@ function research_test(p, Nrefinements, node_name, DGnames)
         u0 = initialize_states(ic, dg, physics.PDE)
         resExact = similar(u0)
         FE_Julia.build_residual!(resExact, u0, 0.0, dg, physics)
+        resExact = FE_Julia.block_matmul(dg.refelem.M, resExact, dg.mesh.Nel)
 
         for myDG in DGnames
             ic, physics, dg = set_up_problem(params[myDG])
             u0 = initialize_states(ic, dg, physics.PDE)
             res = similar(u0)
             FE_Julia.build_residual!(res, u0, 0.0, dg, physics)
+            res = FE_Julia.block_matmul(dg.refelem.M, res, dg.mesh.Nel)
 
             delta = res .- resExact
             delta = sum(FE_Julia.block_matmul(M, delta, Nel) .* delta) * dg.mesh.J[1][1] # uniform mesh
