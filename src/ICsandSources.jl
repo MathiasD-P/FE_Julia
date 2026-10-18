@@ -327,6 +327,68 @@ function compute_source(source::GassnerBurgersSource, PDE::Burgers, dg::DG, pts:
 end
 
 
+struct StrangeBurgersSource <: CLawSource
+    A::Float64
+    alpha::Float64
+    beta::Float64
+    lambda::Float64
+    delta::Float64
+    c::Float64
+    av::Float64
+
+    function StrangeBurgersSource(A::Union{Float64,Nothing}=nothing, alpha::Union{Float64,Nothing}=nothing, beta::Union{Float64,Nothing}=nothing, lambda::Union{Float64,Nothing}=nothing, delta::Union{Float64,Nothing}=nothing, c::Union{Float64,Nothing}=nothing, av::Union{Float64,Nothing}=nothing)
+        Adefault = 1.0
+        alphadefault = 1.0
+        betadefault = 2 * pi
+        lambdadefault = 2 * pi
+        deltadefault = 1.0
+        cdefault = 1.0
+        avdefault = 0.01
+
+        new(
+            something(A, Adefault),
+            something(alpha, alphadefault),
+            something(beta, betadefault),
+            something(lambda, lambdadefault),
+            something(delta, deltadefault),
+            something(c, cdefault),
+            something(av, avdefault)
+        )
+    end
+end
+
+struct StrangeBurgers <: DerivedInitialCondition
+    source::StrangeBurgersSource
+end
+
+function initialize_states(ic::StrangeBurgers, dg::DG, PDE::Burgers, pts = nothing)
+    if isnothing(pts)
+        pts = dg.bpts
+    end
+
+    if PDE.dim != 1 || dg.dim != 1
+        error("StrangeBurgers only works in 1D!")
+    end
+
+    u = zeros((size(pts,1), dg.Nstates))
+    u[:,1] .= ic.source.A .* sin.(ic.source.alpha .* sin.(ic.source.beta .* pts) .+ ic.source.lambda .* pts .+ ic.source.delta) .+ ic.source.av
+
+    return u
+end
+
+function compute_source(source::StrangeBurgersSource, PDE::Burgers, dg::DG, pts::Matrix{Float64}, time::Float64)
+    Q = Matrix{Float64}(undef, (size(pts,1), dg.Nstates))
+
+    if PDE.dim != 1 || dg.dim != 1
+        error("StrangeBurgersSource only works in 1D!")
+    end
+
+    Q[:,1] .= source.A .* cos.(source.alpha .* sin.(source.beta .* pts) .+ source.lambda .* pts .+ source.delta .- source.c .* time) .* (((source.alpha * source.beta) .* cos.(source.beta .* pts) .+ source.lambda) .* (source.A .* sin.(source.alpha .* sin.(source.beta .* pts) .+ source.lambda .* pts .+ source.delta .- source.c .* time) .+ source.av) .- source.c)
+
+    return Q
+end
+
+
 struct GassnerEulerSource <: CLawSource
     A::Float64 # wave amplitude
     k::Float64 # wavenumber times two pi (CHANGE THIS LATER TO MAKE IT CONSISTENT WITH SIN1STATE)
