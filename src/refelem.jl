@@ -9,21 +9,31 @@ struct RefElemStd <: AbstractRefElem
     Nfaces::Integer # total number of faces
     Nbnodes::Integer # total number of basis nodes
     Nqnodes::Integer # total number of quadrature nodes
+    Nqmnodes::Integer # total number of mass quadrature nodes
+    Nqsnodes::Integer # total number of source quadrature nodes
     Nfnodes::Integer # number of face nodes on EACH face
 
     bnodestype::AbstractNodes
     qnodestype::AbstractNodes
+    qmnodestype::AbstractNodes
+    qsnodestype::AbstractNodes
     fnodestype::Fnodes
 
     bnodes::Matrix{Float64}
     qnodes::Matrix{Float64}
+    qmnodes::Matrix{Float64}
+    qsnodes::Matrix{Float64}
     fnodes::Matrix{Float64}
 
     nref::Vector{Vector{Float64}} # reference normal vectors
 
     chiq::Matrix{Float64} # volume quadrature Vandermonde matrix
+    chiqm::Matrix{Float64} # volume mass quadrature Vandermonde matrix
+    chiqs::Matrix{Float64} # volume source quadrature Vandermonde matrix
     chif::Matrix{Float64} # face quadrature Vandermonde matrix
     wq::Vector{Float64} # volume quadrature weights
+    wqm::Vector{Float64} # volume mass quadrature weights
+    wqs::Vector{Float64} # volume source quadrature weights
 
     M::Matrix{Float64}# reference mass matrix
     bh::Vector{Vector{Float64}} # boundary integration weights times ref normal
@@ -32,6 +42,7 @@ struct RefElemStd <: AbstractRefElem
     MinvQhT::Vector{Matrix{Float64}} # for weak DG on linear meshes
     Ph::Matrix{Float64} # reference projection matrix
     LIFT::Vector{Matrix{Float64}} # lifting operator in each direction
+    Phs::Matrix{Float64} # reference source projection matrix
 
     function RefElemStd(bnodestype::AbstractNodes, qnodestype::AbstractNodes, fnodestype::Fnodes)
         shape = fnodestype.refshape
@@ -40,16 +51,28 @@ struct RefElemStd <: AbstractRefElem
         Nfaces = numfaces(fnodestype)
         Nbnodes = numnodes(bnodestype)
         Nqnodes = numnodes(qnodestype)
+        Nqmnodes = Nqnodes
+        Nqsnodes = Nqnodes
         Nfnodes = numnodes(fnodestype.nodes)
 
         nref = unitnormals(fnodestype)
 
         bnodestype = bnodestype
         qnodestype = qnodestype
+        qmnodestype = qnodestype
+        qsnodestype = qnodestype
         fnodestype = fnodestype
 
         chiq, wq, dchi, bnodes, qnodes = extract_volume_operators(bnodestype, qnodestype)
         chif, wf, fnodes = extract_face_operators(bnodestype, fnodestype)
+
+        qmnodes = qnodes
+        chiqm = chiq
+        wqm = wq
+
+        qsnodes = qnodes
+        chiqs = chiq
+        wqs = wq
 
         fnodes = vcat([fnodes[iface] for iface in 1:Nfaces]...)
         chif = vcat([chif[iface] for iface in 1:Nfaces]...) # VERY INEFFICIENT
@@ -62,6 +85,8 @@ struct RefElemStd <: AbstractRefElem
         MinvQhT = (q -> M \ q').(Qh)
         LIFT = (b -> (M \ chif') * Diagonal(b)).(bh)
 
+        Phs = Ph
+
         new(
             shape,
 
@@ -69,21 +94,31 @@ struct RefElemStd <: AbstractRefElem
             Nfaces,
             Nbnodes,
             Nqnodes,
+            Nqmnodes,
+            Nqsnodes,
             Nfnodes,
 
             bnodestype,
             qnodestype,
+            qmnodestype,
+            qsnodestype,
             fnodestype,
 
             bnodes,
             qnodes,
+            qmnodes,
+            qsnodes,
             fnodes,
 
             nref,
 
             chiq,
+            chiqm,
+            chiqs,
             chif,
             wq,
+            wqm,
+            wqs,
 
             M,
             bh,
@@ -91,27 +126,34 @@ struct RefElemStd <: AbstractRefElem
             Qh,
             MinvQhT,
             Ph,
-            LIFT
+            LIFT,
+
+            Phs
         )
     end
 
-    function RefElemStd(bnodestype::AbstractNodes, qnodestype::AbstractNodes, fnodestype::Fnodes, qmnodestype::AbstractNodes)
+    function RefElemStd(bnodestype::AbstractNodes, qnodestype::AbstractNodes, fnodestype::Fnodes, qmnodestype::AbstractNodes, qsnodestype::AbstractNodes)
         shape = fnodestype.refshape
 
         dim = bnodestype.dim
         Nfaces = numfaces(fnodestype)
         Nbnodes = numnodes(bnodestype)
         Nqnodes = numnodes(qnodestype)
+        Nqmnodes = numnodes(qmnodestype)
+        Nqsnodes = numnodes(qsnodestype)
         Nfnodes = numnodes(fnodestype.nodes)
 
         nref = unitnormals(fnodestype)
 
         bnodestype = bnodestype
         qnodestype = qnodestype
+        qmnodestype = qmnodestype
+        qsnodestype = qsnodestype
         fnodestype = fnodestype
 
         chiq, wq, dchi, bnodes, qnodes = extract_volume_operators(bnodestype, qnodestype)
-        chimq, wmq, _, _, _ = extract_volume_operators(bnodestype, qmnodestype)
+        chiqm, wqm, _, _, qmnodes = extract_volume_operators(bnodestype, qmnodestype)
+        chiqs, wqs, _, _, qsnodes = extract_volume_operators(bnodestype, qsnodestype)
         chif, wf, fnodes = extract_face_operators(bnodestype, fnodestype)
 
         fnodes = vcat([fnodes[iface] for iface in 1:Nfaces]...)
@@ -119,12 +161,14 @@ struct RefElemStd <: AbstractRefElem
         bh = [vcat([wf[iface] .* nref[iface][idim] for iface in 1:Nfaces]...) for idim=1:dim]
 
         M = chiq' * Diagonal(wq) * chiq
-        Mm = chimq' * Diagonal(wmq) * chimq
+        Mm = chiqm' * Diagonal(wqm) * chiqm
         Ph = (M \ chiq' * Diagonal(wq))
         Qh = (d -> chiq' * Diagonal(wq) * d).(dchi)
         Dh = (q -> Mm \ q).(Qh)
-        MinvQhT = (q -> M \ q').(Qh)
+        MinvQhT = (q -> Mm \ q').(Qh)
         LIFT = (b -> (Mm \ chif') * Diagonal(b)).(bh)
+
+        Phs = Mm \ chiqs' * Diagonal(wqs)
 
         new(
             shape,
@@ -133,21 +177,31 @@ struct RefElemStd <: AbstractRefElem
             Nfaces,
             Nbnodes,
             Nqnodes,
+            Nqmnodes,
+            Nqsnodes,
             Nfnodes,
 
             bnodestype,
             qnodestype,
+            qmnodestype,
+            qsnodestype,
             fnodestype,
 
             bnodes,
             qnodes,
+            qmnodes,
+            qsnodes,
             fnodes,
 
             nref,
 
             chiq,
+            chiqm,
+            chiqs,
             chif,
             wq,
+            wqm,
+            wqs,
 
             M,
             bh,
@@ -155,8 +209,14 @@ struct RefElemStd <: AbstractRefElem
             Qh,
             MinvQhT,
             Ph,
-            LIFT
+            LIFT,
+
+            Phs
         )
+    end
+
+    function RefElemStd(bnodestype::AbstractNodes, qnodestype::AbstractNodes, fnodestype::Fnodes, qmnodestype::AbstractNodes)
+        return RefElemStd(bnodestype, qnodestype, fnodestype, qmnodestype, qnodestype)
     end
 end
 
@@ -167,21 +227,31 @@ struct RefElemSBP <: AbstractRefElem
     Nfaces::Integer # total number of faces
     Nbnodes::Integer # total number of basis nodes
     Nqnodes::Integer # total number of quadrature nodes
+    Nqmnodes::Integer # total number of mass quadrature nodes
+    Nqsnodes::Integer # total number of source quadrature nodes
     Nfnodes::Integer # number of face nodes on EACH face
 
     bnodestype::AbstractNodes
     qnodestype::AbstractNodes
+    qmnodestype::AbstractNodes
+    qsnodestype::AbstractNodes
     fnodestype::Fnodes
 
     bnodes::Matrix{Float64}
     qnodes::Matrix{Float64}
+    qmnodes::Matrix{Float64}
+    qsnodes::Matrix{Float64}
     fnodes::Matrix{Float64}
 
     nref::Vector{Vector{Float64}} # reference normal vectors
 
     chiq::Matrix{Float64} # volume quadrature Vandermonde matrix
+    chiqm::Matrix{Float64} # volume mass quadrature Vandermonde matrix
+    chiqs::Matrix{Float64} # volume source quadrature Vandermonde matrix
     chif::Matrix{Float64} # face quadrature Vandermonde matrix
     wq::Vector{Float64} # volume quadrature weights
+    wqm::Vector{Float64} # volume mass quadrature weights
+    wqs::Vector{Float64} # volume source quadrature weights
 
     M::Matrix{Float64} # reference mass matrix
     SS::Vector{Matrix{Float64}} # skew symmetric operator
@@ -191,6 +261,8 @@ struct RefElemSBP <: AbstractRefElem
     Ph::Matrix{Float64} # reference projection matrix
     LIFT::Vector{Matrix{Float64}} # lifting operator in each direction
 
+    Phs::Matrix{Float64} # reference source projection matrix
+
     function RefElemSBP(bnodestype::AbstractNodes, qnodestype::AbstractNodes, fnodestype::Fnodes)
         shape = fnodestype.refshape
 
@@ -198,16 +270,28 @@ struct RefElemSBP <: AbstractRefElem
         Nfaces = numfaces(fnodestype)
         Nbnodes = numnodes(bnodestype)
         Nqnodes = numnodes(qnodestype)
+        Nqmnodes = Nqnodes
+        Nqsnodes = Nqnodes
         Nfnodes = numnodes(fnodestype.nodes)
 
         nref = unitnormals(fnodestype)
 
         bnodestype = bnodestype
         qnodestype = qnodestype
+        qmnodestype = qnodestype
+        qsnodestype = qnodestype
         fnodestype = fnodestype
 
         chiq, wq, dchi, bnodes, qnodes = extract_volume_operators(bnodestype, qnodestype)
         chif, wf, fnodes = extract_face_operators(bnodestype, fnodestype)
+
+        qmnodes = qnodes
+        chiqm = chiq
+        wqm = wq
+
+        qsnodes = qnodes
+        chiqs = chiq
+        wqs = wq
 
         fnodes = vcat([fnodes[iface] for iface in 1:Nfaces]...)
         chif = vcat([chif[iface] for iface in 1:Nfaces]...) # VERY INEFFICIENT
@@ -215,6 +299,8 @@ struct RefElemSBP <: AbstractRefElem
 
         M = chiq' * Diagonal(wq) * chiq
         Ph = M \ chiq' * Diagonal(wq)
+
+        Phs = Ph
 
         LIFT = (b -> (M \ chif') * Diagonal(b)).(bh)
         MVF = M \ [chiq ; chif]'
@@ -241,48 +327,65 @@ struct RefElemSBP <: AbstractRefElem
             Nfaces,
             Nbnodes,
             Nqnodes,
+            Nqmnodes,
+            Nqsnodes,
             Nfnodes,
 
             bnodestype,
             qnodestype,
+            qmnodestype,
+            qsnodestype,
             fnodestype,
 
             bnodes,
             qnodes,
+            qmnodes,
+            qsnodes,
             fnodes,
 
             nref,
 
             chiq,
+            chiqm,
+            chiqs,
             chif,
             wq,
+            wqm,
+            wqs,
 
             M,
             SS,
             MVF,
             bh,
             Ph,
-            LIFT
+            LIFT,
+
+            Phs,
         )
     end
 
-    function RefElemSBP(bnodestype::AbstractNodes, qnodestype::AbstractNodes, fnodestype::Fnodes, qmnodestype::AbstractNodes,)
+    function RefElemSBP(bnodestype::AbstractNodes, qnodestype::AbstractNodes, fnodestype::Fnodes, qmnodestype::AbstractNodes, qsnodestype::AbstractNodes)
         shape = fnodestype.refshape
 
         dim = bnodestype.dim
         Nfaces = numfaces(fnodestype)
         Nbnodes = numnodes(bnodestype)
         Nqnodes = numnodes(qnodestype)
+        Nqmnodes = numnodes(qmnodestype)
+        Nqsnodes = numnodes(qsnodestype)
         Nfnodes = numnodes(fnodestype.nodes)
 
         nref = unitnormals(fnodestype)
 
         bnodestype = bnodestype
         qnodestype = qnodestype
+        qmnodestype = qmnodestype
+        qsnodestype = qsnodestype
         fnodestype = fnodestype
 
         chiq, wq, dchi, bnodes, qnodes = extract_volume_operators(bnodestype, qnodestype)
-        chimq, wmq, _, _, _ = extract_volume_operators(bnodestype, qmnodestype)
+        chiqm, wqm, _, _, qmnodes = extract_volume_operators(bnodestype, qmnodestype)
+        chiqs, wqs, _, _, qsnodes = extract_volume_operators(bnodestype, qsnodestype)
         chif, wf, fnodes = extract_face_operators(bnodestype, fnodestype)
 
         fnodes = vcat([fnodes[iface] for iface in 1:Nfaces]...)
@@ -290,8 +393,9 @@ struct RefElemSBP <: AbstractRefElem
         bh = [vcat([wf[iface] .* nref[iface][idim] for iface in 1:Nfaces]...) for idim=1:dim]
 
         M = chiq' * Diagonal(wq) * chiq
-        Mm = chimq' * Diagonal(wmq) * chimq
+        Mm = chiqm' * Diagonal(wqm) * chiqm
         Ph = M \ chiq' * Diagonal(wq)
+        Phs = Mm \ chiqs' * Diagonal(wqs)
 
         LIFT = (b -> (Mm \ chif') * Diagonal(b)).(bh)
         MVF = Mm \ [chiq ; chif]'
@@ -318,29 +422,45 @@ struct RefElemSBP <: AbstractRefElem
             Nfaces,
             Nbnodes,
             Nqnodes,
+            Nqmnodes,
+            Nqsnodes,
             Nfnodes,
 
             bnodestype,
             qnodestype,
+            qmnodestype,
+            qsnodestype,
             fnodestype,
 
             bnodes,
             qnodes,
+            qmnodes,
+            qsnodes,
             fnodes,
 
             nref,
 
             chiq,
+            chiqm,
+            chiqs,
             chif,
             wq,
+            wqm,
+            wqs,
 
             M,
             SS,
             MVF,
             bh,
             Ph,
-            LIFT
+            LIFT,
+
+            Phs,
         )
+    end
+
+    function RefElemSBP(bnodestype::AbstractNodes, qnodestype::AbstractNodes, fnodestype::Fnodes, qmnodestype::AbstractNodes)
+        return RefElemSBP(bnodestype, qnodestype, fnodestype, qmnodestype, qnodestype)
     end
 end
 

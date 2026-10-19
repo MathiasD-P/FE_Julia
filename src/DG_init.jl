@@ -15,6 +15,7 @@ mutable struct DGStd <: DG
 
     bpts::Matrix{Float64} # (DOF, dim) matrix storing the physical coordinates of the basis points
     qpts::Matrix{Float64} # (Nquad, dim) matrix storing the physical coordinates of the quadrature points
+    qspts::Matrix{Float64} # (Nquad, dim) matrix storing the physical coordinates of the source quadrature points
     bfpts::Vector{Matrix{Float64}} # (Ntags,) Vector of (Ntaggedpts, dim) vectors for the physical coordinates of the face points tagged
 
     function DGStd(Nstates::Integer, refelem::RefElemStd, mesh::AbstractMesh)
@@ -34,6 +35,7 @@ mutable struct DGStd <: DG
 
         bpts = reduce(vcat, mapping(mesh, refelem.bnodes, ielem) for ielem in 1:mesh.Nel)
         qpts = reduce(vcat, mapping(mesh, refelem.qnodes, ielem) for ielem in 1:mesh.Nel)
+        qspts = reduce(vcat, mapping(mesh, refelem.qsnodes, ielem) for ielem in 1:mesh.Nel)
         fpts = reduce(vcat, mapping(mesh, refelem.fnodes, ielem) for ielem in 1:mesh.Nel)
         bfpts = [fpts[BFtoF[itag] .== 1,:] for itag in 1:mesh.Ntags]
 
@@ -52,6 +54,7 @@ mutable struct DGStd <: DG
 
             bpts,
             qpts,
+            qspts,
             bfpts
         )
     end
@@ -72,6 +75,7 @@ mutable struct DGFluxDiff <: DG
 
     bpts::Matrix{Float64} # (DOF, dim) matrix storing the physical coordinates of the basis points
     qpts::Matrix{Float64} # (Nquad, dim) matrix storing the physical coordinates of the quadrature points
+    qspts::Matrix{Float64} # (Nquad, dim) matrix storing the physical coordinates of the source quadrature points
     bfpts::Vector{Matrix{Float64}} # (Ntags,) Vector of (Ntaggedpts, dim) vectors for the physical coordinates of the face points tagged
 
     function DGFluxDiff(Nstates::Integer, refelem::RefElemSBP, mesh::AbstractMesh)
@@ -91,6 +95,7 @@ mutable struct DGFluxDiff <: DG
 
         bpts = reduce(vcat, mapping(mesh, refelem.bnodes, ielem) for ielem in 1:mesh.Nel)
         qpts = reduce(vcat, mapping(mesh, refelem.qnodes, ielem) for ielem in 1:mesh.Nel)
+        qspts = reduce(vcat, mapping(mesh, refelem.qsnodes, ielem) for ielem in 1:mesh.Nel)
         fpts = reduce(vcat, mapping(mesh, refelem.fnodes, ielem) for ielem in 1:mesh.Nel)
         bfpts = [fpts[BFtoF[itag] .== 1,:] for itag in 1:mesh.Ntags]
 
@@ -109,6 +114,7 @@ mutable struct DGFluxDiff <: DG
 
             bpts,
             qpts,
+            qspts,
             bfpts
         )
     end
@@ -129,6 +135,7 @@ mutable struct DGArtVisc <: DG
 
     bpts::Matrix{Float64} # (DOF, dim) matrix storing the physical coordinates of the basis points
     qpts::Matrix{Float64} # (Nquad, dim) matrix storing the physical coordinates of the quadrature points
+    qspts::Matrix{Float64} # (Nquad, dim) matrix storing the physical coordinates of the source quadrature points
     bfpts::Vector{Matrix{Float64}} # (Ntags,) Vector of (Ntaggedpts, dim) vectors for the physical coordinates of the face points tagged
 
     function DGArtVisc(Nstates::Integer, refelem::RefElemStd, mesh::AbstractMesh)
@@ -148,6 +155,7 @@ mutable struct DGArtVisc <: DG
 
         bpts = reduce(vcat, mapping(mesh, refelem.bnodes, ielem) for ielem in 1:mesh.Nel)
         qpts = reduce(vcat, mapping(mesh, refelem.qnodes, ielem) for ielem in 1:mesh.Nel)
+        qspts = reduce(vcat, mapping(mesh, refelem.qsnodes, ielem) for ielem in 1:mesh.Nel)
         fpts = reduce(vcat, mapping(mesh, refelem.fnodes, ielem) for ielem in 1:mesh.Nel)
         bfpts = [fpts[BFtoF[itag] .== 1,:] for itag in 1:mesh.Ntags]
 
@@ -166,6 +174,7 @@ mutable struct DGArtVisc <: DG
 
             bpts,
             qpts,
+            qspts,
             bfpts
         )
     end
@@ -186,6 +195,7 @@ mutable struct DGAddRes <: DG
 
     bpts::Matrix{Float64} # (DOF, dim) matrix storing the physical coordinates of the basis points
     qpts::Matrix{Float64} # (Nquad, dim) matrix storing the physical coordinates of the quadrature points
+    qspts::Matrix{Float64} # (Nquad, dim) matrix storing the physical coordinates of the source quadrature points
     bfpts::Vector{Matrix{Float64}} # (Ntags,) Vector of (Ntaggedpts, dim) vectors for the physical coordinates of the face points tagged
 
     function DGAddRes(Nstates::Integer, refelem::RefElemStd, mesh::AbstractMesh)
@@ -205,6 +215,7 @@ mutable struct DGAddRes <: DG
 
         bpts = reduce(vcat, mapping(mesh, refelem.bnodes, ielem) for ielem in 1:mesh.Nel)
         qpts = reduce(vcat, mapping(mesh, refelem.qnodes, ielem) for ielem in 1:mesh.Nel)
+        qspts = reduce(vcat, mapping(mesh, refelem.qsnodes, ielem) for ielem in 1:mesh.Nel)
         fpts = reduce(vcat, mapping(mesh, refelem.fnodes, ielem) for ielem in 1:mesh.Nel)
         bfpts = [fpts[BFtoF[itag] .== 1,:] for itag in 1:mesh.Ntags]
 
@@ -223,6 +234,7 @@ mutable struct DGAddRes <: DG
 
             bpts,
             qpts,
+            qspts,
             bfpts
         )
     end

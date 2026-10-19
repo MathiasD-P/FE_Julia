@@ -46,11 +46,22 @@ function initialize_all_nodes(param::parameters) # does not include enodes
     qnodes = make_nodes(param.qnodes)
     fnodes = make_nodes(param.refelem, param.fnodes)
 
-    if isnothing(param.qmnodes)
+    if isnothing(param.qmnodes) && isnothing(param.qsnodes) # WE DO IT THIS WAY BECAUSE I STILL WANT TO USE OLD CONSTRUCTOR IF qsnodes or qmnodes are not activated.
         return bnodes, qnodes, fnodes
     else
-        qmnodes = make_nodes(param.qmnodes)
-        return bnodes, qnodes, fnodes, qmnodes
+        if isnothing(param.qmnodes)
+            qmnodes = qnodes
+        else
+            qmnodes = make_nodes(param.qmnodes)
+        end
+        
+        if isnothing(param.qsnodes)
+            qsnodes = qnodes
+        else
+            qsnodes = make_nodes(param.qsnodes)
+        end
+
+        return bnodes, qnodes, fnodes, qmnodes, qsnodes
     end
 end
 

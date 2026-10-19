@@ -12,6 +12,7 @@ mutable struct parameters
     bnodes::Union{String,Nothing}
     qnodes::Union{String,Nothing}
     qmnodes::Union{String,Nothing}
+    qsnodes::Union{String,Nothing}
     fnodes::Union{String,Nothing}
     enodes::Union{String,Nothing} # nodes for L2 error computation
 
@@ -57,6 +58,7 @@ mutable struct parameters
                      bnodes=nothing,
                      qnodes=nothing,
                      qmnodes=nothing,
+                     qsnodes=nothing,
                      enodes=nothing,
                      fnodes=nothing,
 
@@ -97,6 +99,7 @@ mutable struct parameters
                          bnodes,
                          qnodes,
                          qmnodes,
+                         qsnodes,
                          fnodes,
                          enodes,
                          refelem,

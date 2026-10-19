@@ -33,7 +33,7 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, dg::DGSt
 
         # Add source (if applicable)
         if !(isnothing(physics.source))
-            residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(physics.source, physics.PDE, dg, dg.qpts, t), dg.mesh.Nel)
+            residual .= residual .+ block_matmul(dg.refelem.Phs, compute_source(physics.source, physics.PDE, dg, dg.qspts, t), dg.mesh.Nel)
         end
 
         return residual
@@ -96,7 +96,7 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, dg::DGFl
 
         # Add source (if applicable)
         if !(isnothing(physics.source))
-            residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(physics.source, physics.PDE, dg, dg.qpts, t), dg.mesh.Nel)
+            residual .= residual .+ block_matmul(dg.refelem.Phs, compute_source(physics.source, physics.PDE, dg, dg.qspts, t), dg.mesh.Nel)
         end
 
         return residual
@@ -206,7 +206,7 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, dg::DGAr
         
         # Add source (if applicable)
         if !(isnothing(physics.source))
-            residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(physics.source, physics.PDE, dg, dg.qpts, t), dg.mesh.Nel)
+            residual .= residual .+ block_matmul(dg.refelem.Phs, compute_source(physics.source, physics.PDE, dg, dg.qspts, t), dg.mesh.Nel)
         end
 
         if debug
@@ -357,7 +357,7 @@ function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, dg::DGAd
 
         # Add source (if applicable)
         if !(isnothing(physics.source))
-            residual .= residual .+ block_matmul(dg.refelem.Ph, compute_source(physics.source, physics.PDE, dg, dg.qpts, t), dg.mesh.Nel)
+            residual .= residual .+ block_matmul(dg.refelem.Phs, compute_source(physics.source, physics.PDE, dg, dg.qspts, t), dg.mesh.Nel)
         end
 
         return residual
