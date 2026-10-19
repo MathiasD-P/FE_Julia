@@ -337,10 +337,11 @@ struct StrangeBurgersSource <: CLawSource
     av::Float64
 
     function StrangeBurgersSource(A::Union{Float64,Nothing}=nothing, alpha::Union{Float64,Nothing}=nothing, beta::Union{Float64,Nothing}=nothing, lambda::Union{Float64,Nothing}=nothing, delta::Union{Float64,Nothing}=nothing, c::Union{Float64,Nothing}=nothing, av::Union{Float64,Nothing}=nothing)
-        Adefault = 1.0
-        alphadefault = 1.0
+        # These are the parameters to break (6)-GLL DGAddRes with 16 elements at t = 3.0
+        Adefault = 1.1
+        alphadefault = 2.0
         betadefault = 2 * pi
-        lambdadefault = 2 * pi
+        lambdadefault = 4 * pi
         deltadefault = 1.0
         cdefault = 1.0
         avdefault = 0.01

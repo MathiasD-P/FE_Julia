@@ -253,6 +253,8 @@ function parse_parameters_initialcondition_and_source(param::parameters) # THIS 
     # First, we parse source
     if param.sourcename == "GassnerBurgers"
         source = GassnerBurgersSource()
+    elseif param.sourcename == "StrangeBurgers"
+        source = StrangeBurgersSource()
     elseif param.sourcename == "GassnerEuler"
         source = GassnerEulerSource()
     elseif isnothing(param.sourcename)
@@ -282,6 +284,8 @@ function parse_parameters_initialcondition_and_source(param::parameters) # THIS 
         ic = SodShockTube()
     elseif param.ICname == "GassnerBurgers"
         ic = GassnerBurgers(source)
+    elseif param.ICname == "StrangeBurgers"
+        ic = StrangeBurgers(source)
     elseif param.ICname == "GassnerEuler"
         ic = GassnerEuler(source)
     else
