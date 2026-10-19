@@ -48,6 +48,7 @@ mutable struct parameters
     k::Union{Real,Nothing} # wavenumber for sinusoidal initializations
     phi::Union{Real,Nothing} # phase shift for sinusoidal initializations
     av::Union{Real,Nothing} # average for sinusoidal initializations
+    strangecoeff::Union{Vector{Real},Nothing} # parameters for strange Burgers
     kmax # wavenumber cutoff for Burgulence
 
     function parameters(;
@@ -91,6 +92,7 @@ mutable struct parameters
                      k=nothing,
                      phi=nothing,
                      av=nothing,
+                     strangecoeff=nothing,
                      kmax=nothing)
 
                      new(pdetype,
@@ -127,6 +129,7 @@ mutable struct parameters
                          k,
                          phi,
                          av,
+                         strangecoeff,
                          kmax)
     end
 end
@@ -254,7 +257,7 @@ function parse_parameters_initialcondition_and_source(param::parameters) # THIS 
     if param.sourcename == "GassnerBurgers"
         source = GassnerBurgersSource()
     elseif param.sourcename == "StrangeBurgers"
-        source = StrangeBurgersSource()
+        source = StrangeBurgersSource(param.strangecoeff)
     elseif param.sourcename == "GassnerEuler"
         source = GassnerEulerSource()
     elseif isnothing(param.sourcename)
