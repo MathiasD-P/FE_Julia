@@ -46,7 +46,18 @@ function initialize_all_nodes(param::parameters) # does not include enodes
     qnodes = make_nodes(param.qnodes)
     fnodes = make_nodes(param.refelem, param.fnodes)
 
-    if isnothing(param.qmnodes) && isnothing(param.qsnodes) # WE DO IT THIS WAY BECAUSE I STILL WANT TO USE OLD CONSTRUCTOR IF qsnodes or qmnodes are not activated.
+    if param.dgtype == "DGStdP" # requires different node inputs
+        qpnodes = make_nodes(param.qpnodes)
+
+        if isnothing(param.qsnodes)
+            qsnodes = qnodes
+        else
+            qsnodes = make_nodes(param.qsnodes)
+        end
+
+        return bnodes, qnodes, fnodes, qpnodes, qsnodes
+
+    elseif isnothing(param.qmnodes) && isnothing(param.qsnodes) # WE DO IT THIS WAY BECAUSE I STILL WANT TO USE OLD CONSTRUCTOR IF qsnodes or qmnodes are not activated.
         return bnodes, qnodes, fnodes
     else
         if isnothing(param.qmnodes)
@@ -93,6 +104,9 @@ function set_up_problem(param::parameters)
     elseif param.dgtype == "DGAddRes"
         refelem = RefElemStd(allnodes...)
         dg = DGAddRes(PDE.Nstates, refelem, mesh)
+    elseif param.dgtype == "DGStdP"
+        refelem =RefElemStdP(allnodes...)
+        dg = DGStdP(PDE.Nstates, refelem, mesh)
     else
         error("Unknown DG type!")
     end

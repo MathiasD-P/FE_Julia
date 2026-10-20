@@ -464,6 +464,141 @@ struct RefElemSBP <: AbstractRefElem
     end
 end
 
+
+struct RefElemStdP <: AbstractRefElem
+    shape::String # type of element
+
+    dim::Integer # dimension of element
+    Nfaces::Integer # total number of faces
+    Nbnodes::Integer # total number of basis nodes
+    Nqnodes::Integer # total number of quadrature nodes
+    Nqpnodes::Integer # total number of mass quadrature nodes
+    Nqsnodes::Integer # total number of source quadrature nodes
+    Nfnodes::Integer # number of face nodes on EACH face
+
+    bnodestype::AbstractNodes
+    qnodestype::AbstractNodes
+    qpnodestype::AbstractNodes
+    qsnodestype::AbstractNodes
+    fnodestype::Fnodes
+
+    bnodes::Matrix{Float64}
+    qnodes::Matrix{Float64}
+    qpnodes::Matrix{Float64}
+    qsnodes::Matrix{Float64}
+    fnodes::Matrix{Float64}
+
+    nref::Vector{Vector{Float64}} # reference normal vectors
+
+    chiq::Matrix{Float64} # volume quadrature Vandermonde matrix
+    chiqp::Matrix{Float64} # volume mass quadrature Vandermonde matrix
+    chiqs::Matrix{Float64} # volume source quadrature Vandermonde matrix
+    chif::Matrix{Float64} # face quadrature Vandermonde matrix
+    wq::Vector{Float64} # volume quadrature weights
+    wqp::Vector{Float64} # volume mass quadrature weights
+    wqs::Vector{Float64} # volume source quadrature weights
+
+    M::Matrix{Float64}# reference mass matrix
+    bh::Vector{Vector{Float64}} # boundary integration weights times ref normal
+    Dh::Vector{Matrix{Float64}} # reference differentiation matrix in each direction
+    Qh::Vector{Matrix{Float64}} # reference stiffness matrix in each direction
+    MinvQhT::Vector{Matrix{Float64}} # for weak DG on linear meshes
+    Ph::Matrix{Float64} # reference projection matrix
+    LIFT::Vector{Matrix{Float64}} # lifting operator in each direction
+    Php::Matrix{Float64} # reference projection matrix (projection quadrature)
+    Phs::Matrix{Float64} # reference source projection matrix
+
+    function RefElemStdP(bnodestype::AbstractNodes, qnodestype::AbstractNodes, fnodestype::Fnodes, qpnodestype::AbstractNodes, qsnodestype::AbstractNodes)
+        shape = fnodestype.refshape
+
+        dim = bnodestype.dim
+        Nfaces = numfaces(fnodestype)
+        Nbnodes = numnodes(bnodestype)
+        Nqnodes = numnodes(qnodestype)
+        Nqpnodes = numnodes(qpnodestype)
+        Nqsnodes = numnodes(qsnodestype)
+        Nfnodes = numnodes(fnodestype.nodes)
+
+        nref = unitnormals(fnodestype)
+
+        bnodestype = bnodestype
+        qnodestype = qnodestype
+        qpnodestype = qpnodestype
+        qsnodestype = qsnodestype
+        fnodestype = fnodestype
+
+        chiq, wq, dchi, bnodes, qnodes = extract_volume_operators(bnodestype, qnodestype)
+        chif, wf, fnodes = extract_face_operators(bnodestype, fnodestype)
+        chiqp, wqp, _, _, qpnodes = extract_volume_operators(bnodestype, qpnodestype)
+        chiqs, wqs, _, _, qsnodes = extract_volume_operators(bnodestype, qsnodestype)
+
+
+        fnodes = vcat([fnodes[iface] for iface in 1:Nfaces]...)
+        chif = vcat([chif[iface] for iface in 1:Nfaces]...) # VERY INEFFICIENT
+        bh = [vcat([wf[iface] .* nref[iface][idim] for iface in 1:Nfaces]...) for idim=1:dim]
+
+        M = chiq' * Diagonal(wq) * chiq
+        Ph = (M \ chiq' * Diagonal(wq))
+        Qh = (d -> chiq' * Diagonal(wq) * d).(dchi)
+        Dh = (q -> M \ q).(Qh)
+        MinvQhT = (q -> M \ q').(Qh)
+        LIFT = (b -> (M \ chif') * Diagonal(b)).(bh)
+
+        Php = (chiqp' * Diagonal(wqp) * chiqp) \ chiqp' * Diagonal(wqp)
+        Phs = M \ chiqs' * Diagonal(wqs)
+
+        new(
+            shape,
+
+            dim,
+            Nfaces,
+            Nbnodes,
+            Nqnodes,
+            Nqpnodes,
+            Nqsnodes,
+            Nfnodes,
+
+            bnodestype,
+            qnodestype,
+            qpnodestype,
+            qsnodestype,
+            fnodestype,
+
+            bnodes,
+            qnodes,
+            qpnodes,
+            qsnodes,
+            fnodes,
+
+            nref,
+
+            chiq,
+            chiqp,
+            chiqs,
+            chif,
+            wq,
+            wqp,
+            wqs,
+
+            M,
+            bh,
+            Dh,
+            Qh,
+            MinvQhT,
+            Ph,
+            LIFT,
+
+            Php,
+            Phs
+        )
+    end
+
+    function RefElemStdP(bnodestype::AbstractNodes, qnodestype::AbstractNodes, fnodestype::Fnodes, qpnodestype::AbstractNodes)
+        return RefElemStdP(bnodestype, qnodestype, fnodestype, qpnodestype, qnodestype)
+    end
+end
+
+
 function Base.show(io::IO, re::AbstractRefElem)
     print(io, "Reference element type: " * re.shape * "\n")
     print(io, "Basis nodes: \n")

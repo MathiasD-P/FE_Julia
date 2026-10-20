@@ -367,6 +367,55 @@ end
 function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, dg::DGEntFilt, physics::PhysProp) where {T<:Real}
 end
 
+function build_residual!(residual::Matrix{T}, u::Matrix{T}, t::Float64, dg::DGStdP, physics::PhysProp) where {T<:Real}
+    # For a linear mesh, we can simplify the computation
+    if dg.mesh isa LMesh
+        # We start by computing the entropy-projected solution (volume and face)
+        v = compute_evar(block_matmul(dg.refelem.chiqp, u, dg.mesh.Nel), physics.PDE) # Compute entropy variables at vol quadrature points
+        v = block_matmul(dg.refelem.Php, v, dg.mesh.Nel) # Project entropy variables
+        vq = block_matmul(dg.refelem.chiq, v, dg.mesh.Nel) # evaluate at vol quadrature
+        vf = block_matmul(dg.refelem.chif, v, dg.mesh.Nel)
+
+        uq = compute_cvar(vq, physics.PDE)
+        un = compute_cvar(vf, physics.PDE)
+
+        up = dg.FtoF * un + evaluate_BC(physics.BChandler, dg, t)
+
+        vf = vq = v = nothing
+
+        # We compute the projected reference flux
+        flux = compute_physflux(uq, physics.PDE)
+        flux_to_ref!(flux, dg.refelem.Nqnodes, dg)
+        flux = Tuple(block_matmul(dg.refelem.Ph, flux[dir], dg.mesh.Nel) for dir in 1:dg.dim)
+
+        # Now, we interpolate the projected flux to the faces
+        fluxface = Tuple(block_matmul(dg.refelem.chif, flux[dir], dg.mesh.Nel) for dir in 1:dg.dim)
+
+        # Finally, we evaluate numflux
+        numflux = compute_numflux(un, up, dg.nphys, physics.numflux, physics.PDE)
+        flux_to_ref!(numflux, dg.refelem.Nfnodes, dg)
+
+        # Assemble complete residual (volume and face)
+        residual .= 0.0
+        for dir in 1:dg.dim
+            @views residual .= residual .- block_matmul(dg.refelem.Dh[dir], flux[dir], dg.mesh.Nel) .- block_matmul((dg.refelem.LIFT[dir]), numflux[dir] .- fluxface[dir], dg.mesh.Nel)
+        end
+
+        # Scale by Jacobian
+        for ielem = 1:dg.mesh.Nel
+            index = 1+dg.refelem.Nbnodes*(ielem-1):dg.refelem.Nbnodes*ielem
+            @views residual[index,:] .= residual[index,:] ./ dg.mesh.detJ[ielem]
+        end
+
+        # Add source (if applicable)
+        if !(isnothing(physics.source))
+            residual .= residual .+ block_matmul(dg.refelem.Phs, compute_source(physics.source, physics.PDE, dg, dg.qspts, t), dg.mesh.Nel)
+        end
+
+        return residual
+    end
+end
+
 #####################################################################
 # Other helper functions
 #####################################################################

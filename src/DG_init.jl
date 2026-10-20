@@ -60,6 +60,7 @@ mutable struct DGStd <: DG
     end
 end
 
+
 mutable struct DGFluxDiff <: DG
     DOF::Int64
     NFval::Int64
@@ -119,6 +120,7 @@ mutable struct DGFluxDiff <: DG
         )
     end
 end
+
 
 mutable struct DGArtVisc <: DG
     DOF::Int64
@@ -180,6 +182,7 @@ mutable struct DGArtVisc <: DG
     end
 end
 
+
 mutable struct DGAddRes <: DG
     DOF::Int64
     NFval::Int64
@@ -240,9 +243,72 @@ mutable struct DGAddRes <: DG
     end
 end
 
+
 mutable struct DGEntFilt <: DG
     DOF::Integer
 end
+
+
+mutable struct DGStdP <: DG
+    DOF::Int64
+    NFval::Int64
+    Nstates::Int64
+    dim::Int64
+
+    mesh::AbstractMesh
+    refelem::RefElemStdP
+    nphys::Matrix{Float64} # unit physical normals at all the face points
+
+    FtoF::SparseMatrixCSC{Float64, Int64} # (NFval, NFval) Maps globally ordered face values to globally ordered connected face values
+    BFtoF::Vector{SparseVector{Float64, Int64}} # (Ntags,) Vector  of (,NFval) vectors identifying the face nodes for each tag
+
+    bpts::Matrix{Float64} # (DOF, dim) matrix storing the physical coordinates of the basis points
+    qpts::Matrix{Float64} # (Nquad, dim) matrix storing the physical coordinates of the quadrature points
+    qspts::Matrix{Float64} # (Nquad, dim) matrix storing the physical coordinates of the source quadrature points
+    bfpts::Vector{Matrix{Float64}} # (Ntags,) Vector of (Ntaggedpts, dim) vectors for the physical coordinates of the face points tagged
+
+    function DGStdP(Nstates::Integer, refelem::RefElemStdP, mesh::AbstractMesh)
+        DOF = refelem.Nbnodes * mesh.Nel
+        NFval = refelem.Nfnodes * refelem.Nfaces * mesh.Nel
+
+        if mesh.dim != refelem.dim
+            error("dimension of mesh and refelem must agree!")
+        else
+            dim = mesh.dim
+        end
+
+        nphys = compute_unitphys_normals(mesh, refelem)
+
+        FtoF = compute_FtoF(mesh, refelem)
+        BFtoF = compute_BFtoF(mesh, refelem)
+
+        bpts = reduce(vcat, mapping(mesh, refelem.bnodes, ielem) for ielem in 1:mesh.Nel)
+        qpts = reduce(vcat, mapping(mesh, refelem.qnodes, ielem) for ielem in 1:mesh.Nel)
+        qspts = reduce(vcat, mapping(mesh, refelem.qsnodes, ielem) for ielem in 1:mesh.Nel)
+        fpts = reduce(vcat, mapping(mesh, refelem.fnodes, ielem) for ielem in 1:mesh.Nel)
+        bfpts = [fpts[BFtoF[itag] .== 1,:] for itag in 1:mesh.Ntags]
+
+        new(
+            DOF,
+            NFval,
+            Nstates,
+            dim,
+
+            mesh,
+            refelem,
+            nphys,
+
+            FtoF,
+            BFtoF,
+
+            bpts,
+            qpts,
+            qspts,
+            bfpts
+        )
+    end
+end
+
 
 function compute_unitphys_normals(mesh::LMesh, refelem::AbstractRefElem)
     if all(x -> x === mesh.CT[1], mesh.CT) # check if cofactor matrix is constant over all elements
