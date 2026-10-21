@@ -262,11 +262,18 @@ function initialize_states(ic::SodShockTube, dg::DG, PDE::EulerPerfGas, pts = no
         error("Sod Shock Tube only works in 1D!")
     end
 
+    # u = zeros((size(pts,1), dg.Nstates))
+    # u[vec(pts .< -0.2),1] .= 1.0
+    # u[vec(pts .>= -0.2),1] .= 0.125
+    # u[vec(pts .< -0.2),2] .= 0.75
+    # u[vec(pts .< -0.2),3] .= 1.0 / (PDE.gamma-1) + 0.5 * 0.75^2
+    # u[vec(pts .>= -0.2),3] .= 0.1 / (PDE.gamma-1)
+
     u = zeros((size(pts,1), dg.Nstates))
-    u[pts .< 0,1] .= 1
-    u[pts .>= 0,1] .= 0.125
-    u[pts .< 0,3] .= 1.0 / (PDE.gamma-1)
-    u[pts .< 0,3] .= 0.1 / (PDE.gamma-1)
+    u[vec(pts .< 0),1] .= 1.0
+    u[vec(pts .>= 0),1] .= 0.125
+    u[vec(pts .< 0),3] .= 1.0 / (PDE.gamma-1)
+    u[vec(pts .>= 0),3] .= 0.1 / (PDE.gamma-1)
 
     return u
 end

@@ -427,9 +427,9 @@ function AV_coeff(delta, den, artviscmodel)
         a = 0.0
     end
 
-    if abs(den) < 1e-12 && (abs(delta) / abs(den)) > 1
-        println("Careful, visc denominator < 1e-12!")
-    end
+    # if abs(den) < 1e-12 && (abs(delta) / abs(den)) > 1
+    #     println("Careful, visc denominator < 1e-12!")
+    # end
 
     if isnothing(artviscmodel.addvisc)
         return a * den / (tol + den^2)
