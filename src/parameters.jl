@@ -260,7 +260,7 @@ function parse_parameters_initialcondition_and_source(param::parameters) # THIS 
     if param.sourcename == "GassnerBurgers"
         source = GassnerBurgersSource()
     elseif param.sourcename == "StrangeBurgers"
-        source = StrangeBurgersSource(param.strangecoeff)
+        source = StrangeBurgersSource(param.strangecoeff...)
     elseif param.sourcename == "GassnerEuler"
         source = GassnerEulerSource()
     elseif isnothing(param.sourcename)
