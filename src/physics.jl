@@ -268,7 +268,7 @@ function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Union{Ab
     fn = Euler_physflux(up, PDE)
 
     for dir in 1:PDE.dim
-        fn[dir] .= fn[dir] .+ fp[dir]
+        fn[dir] .= 0.5 .* (fn[dir] .+ fp[dir])
     end
 
     return fn
@@ -279,7 +279,7 @@ function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Union{Ab
 end
 
 function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::AbstractMatrix, numflux::ESChandrashekarDissipNumFlux, PDE::EulerPerfGas)
-    f = Euler_numflux_Chandrashekar(up, un, PDE)
+    f = Euler_numflux_Chandrashekar(un, up, PDE)
     d = Euler_numdissip_ES(un, up, nphys, PDE)
 
     for dir in 1:PDE.dim
@@ -287,6 +287,18 @@ function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Abstract
     end
 
     return f
+end
+
+function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::AbstractMatrix, numflux::LFNumFlux, PDE::EulerPerfGas)
+    fp = Euler_physflux(up, PDE)
+    fn = Euler_physflux(un, PDE)
+    d = Euler_numdissip_LFDavis(un, up, nphys, PDE)
+
+    for dir in 1:PDE.dim
+        fn[dir] .= 0.5 .* (fn[dir] .+ fp[dir]) .+ d[dir]
+    end
+
+    return fn
 end
 
 #####################################################################
@@ -820,3 +832,39 @@ function Euler_numdissip_ES(un::AbstractVector, up::AbstractVector, nphys::Abstr
         error("Chandrashekar flux only implemented in 1D.")
     end
 end
+
+function Euler_numdissip_LFDavis(un::AbstractMatrix, up::AbstractMatrix, nphys::AbstractMatrix, PDE::EulerPerfGas) # copied from (Gassner, Kopriva, Winters, Hindenlang, 2018)
+    if PDE.dim == 1
+
+        ujump = (up - un) .* nphys # WOULD BE MUCH MORE EFFICIENT IF WE COULD USE THE ENTROPY VARS AS INPUT
+
+        pp = Euler_pressure(up, PDE)
+        pn = Euler_pressure(un, PDE)
+
+        cp = sqrt.(PDE.gamma .* pp ./ up[:,1])
+        cn = sqrt.(PDE.gamma .* pn ./ un[:,1])
+
+        return (-0.5 .* ujump .* max.(abs.(up[:,2] ./ up[:,1]) .+ cp, abs.(un[:,2] ./ un[:,1]) .+ cn),)
+    else
+        error("LF dissipation only implemented in 1D.")
+    end
+end
+
+
+# @inline function max_abs_speed(u_ll, u_rr, orientation::Integer,
+#                                equations::CompressibleEulerEquations1D)
+#     rho_ll, rho_v1_ll, rho_e_total_ll = u_ll
+#     rho_rr, rho_v1_rr, rho_e_total_rr = u_rr
+
+#     # Calculate primitive variables and speed of sound
+#     v1_ll = rho_v1_ll / rho_ll
+#     v_mag_ll = abs(v1_ll)
+#     p_ll = (equations.gamma - 1) * (rho_e_total_ll - 0.5f0 * rho_ll * v_mag_ll^2)
+#     c_ll = sqrt(equations.gamma * p_ll / rho_ll)
+#     v1_rr = rho_v1_rr / rho_rr
+#     v_mag_rr = abs(v1_rr)
+#     p_rr = (equations.gamma - 1) * (rho_e_total_rr - 0.5f0 * rho_rr * v_mag_rr^2)
+#     c_rr = sqrt(equations.gamma * p_rr / rho_rr)
+
+#     return max(v_mag_ll + c_ll, v_mag_rr + c_rr)
+# end
