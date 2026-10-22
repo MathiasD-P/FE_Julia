@@ -32,8 +32,8 @@ function initialize_BCHandler(dg::DG, param::parameters)
         return Dict(-1 => -ones((dg.Nstates,)), -2 => ones((dg.Nstates,)))
 
     elseif param.BCname == "SodShockTube"
-        # return Dict(-1 => [1.0, 0.75, 1.0 / (param.gamma-1) + 0.5 * 0.75^2], -2 => [0.125, 0.0, 0.1 / (param.gamma-1)])
-        return Dict(-1 => [1.0, 0.0, 1.0 / (param.gamma-1)], -2 => [0.125, 0.0, 0.1 / (param.gamma-1)])
+        return Dict(-1 => [1.0, 0.75, 1.0 / (param.gamma-1) + 0.5 * 0.75^2], -2 => [0.125, 0.0, 0.1 / (param.gamma-1)])
+        # return Dict(-1 => [1.0, 0.0, 1.0 / (param.gamma-1)], -2 => [0.125, 0.0, 0.1 / (param.gamma-1)])
     end
 end
 

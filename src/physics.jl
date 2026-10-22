@@ -765,8 +765,9 @@ function Euler_numdissip_ES(un::AbstractMatrix, up::AbstractMatrix, nphys::Abstr
 
             rholn = logmean(up[index,1], un[index,1])
             betaln = logmean(0.5 * up[index,1] / pn, 0.5 * un[index,1] / pp)
+            pavg = (up[index,1] + un[index,1]) / (up[index,1] / pp + un[index,1] / pn)
 
-            abar = sqrt(0.5 * PDE.gamma * (pn + pp)/rholn)
+            abar = sqrt(PDE.gamma * pavg / rholn)
             hbar = PDE.gamma/(2.0*betaln*(PDE.gamma-1.0)) + 0.5 * vel2avg
 
             R[2,1] = velavg - abar ; R[2,2] = velavg ; R[2,3] = velavg + abar
@@ -800,8 +801,9 @@ function Euler_numdissip_ES(un::AbstractVector, up::AbstractVector, nphys::Abstr
 
         rholn = logmean(up[1], un[1])
         betaln = logmean(0.5 * up[1] / pn, 0.5 * un[1] / pp)
+        pavg = (up[1] + un[1]) / (up[1] / pp + un[1] / pn)
 
-        abar = sqrt(0.5 * PDE.gamma * (pn + pp)/rholn)
+        abar = sqrt(PDE.gamma * pavg / rholn)
         hbar = PDE.gamma/(2.0*betaln*(PDE.gamma-1.0)) + 0.5 * vel2avg
 
         R = [1.0 1.0 1.0;
