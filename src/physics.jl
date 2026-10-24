@@ -641,7 +641,7 @@ function Euler_cvar_Hessian(u::AbstractVector, PDE::EulerPerfGas) # copied from 
         K[1,:] = u
         K[2,2] = u[2]^2 / u[1] + p
         K[2,3] = u[2] / u[1] * (u[end] + p)
-        K[3,3] = u[1] * (a2 / (PDE.gamma-1) + 0.5 * u[2]^2 / u[1])^2 - a2 * p / (PDE.gamma - 1)
+        K[3,3] = u[1] * (a2 / (PDE.gamma-1) + 0.5 * (u[2] / u[1])^2)^2 - a2 * p / (PDE.gamma - 1)
 
         copyto!(K, Symmetric(K, :U)) # symmetrize
 
@@ -845,6 +845,7 @@ function Euler_numdissip_LFDavis(un::AbstractMatrix, up::AbstractMatrix, nphys::
         cn = sqrt.(PDE.gamma .* pn ./ un[:,1])
 
         return (-0.5 .* ujump .* max.(abs.(up[:,2] ./ up[:,1]) .+ cp, abs.(un[:,2] ./ un[:,1]) .+ cn),)
+        # return (-0.5 .* ujump .* (max.(abs.(up[:,2] ./ up[:,1]), abs.(un[:,2] ./ un[:,1])) .+ max.(cp, cn)),)
     else
         error("LF dissipation only implemented in 1D.")
     end
