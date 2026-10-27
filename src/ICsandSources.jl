@@ -397,6 +397,60 @@ function compute_source(source::StrangeBurgersSource, PDE::Burgers, dg::DG, pts:
 end
 
 
+struct ForcedBurgulenceSource <: CLawSource # taken from (Fernandez, Moura, Mengaldo, Peraire, 2019)
+    A::Float64 # AF / \sqrt{\Delta t}
+    L::Float64
+    Ncut::Int64
+    u0::Float64
+
+    function ForcedBurgulenceSource(A::Union{Float64,Nothing}=nothing, L::Union{Float64,Nothing}=nothing, Ncut::Union{Float64,Nothing}=nothing, u0::Union{Float64,Nothing}=nothing)
+        Adefault = 1.0
+        Ldefault = 1.0
+        Ncutdefault = 10
+        u0default = 0.01
+
+        new(something(A, Adefault), something(L, Ldefault), something(Ncut, Ncutdefault), something(u0, u0default))
+    end
+end
+
+struct ForcedBurgulence <: DerivedInitialCondition
+    source::ForcedBurgulenceSource
+end
+
+function initialize_states(ic::ForcedBurgulence, dg::DG, PDE::Burgers, pts = nothing)
+    if isnothing(pts)
+        pts = dg.bpts
+    end
+
+    if PDE.dim != 1 || dg.dim != 1
+        error("ForcedBurgulence only works in 1D!")
+    end
+
+    u = ic.source.u0 .* ones((size(pts,1), dg.Nstates))
+
+    return u
+end
+
+function compute_source(source::ForcedBurgulenceSource, PDE::Burgers, dg::DG, pts::Matrix{Float64}, time::Float64)
+    Q = zeros((size(pts,1), dg.Nstates))
+
+    if PDE.dim != 1 || dg.dim != 1
+        error("ForcedBurgulenceSource only works in 1D!")
+    end
+
+    for n = 1:source.Ncut
+        magnitude = randn() / sqrt(n)
+        phase = 2*pi * rand()
+
+        @. Q = Q + magnitude * sin(2*pi * n / source.L * pts - phase)
+    end
+
+    @. Q = source.A * Q
+
+    return Q
+end
+
+
 struct GassnerEulerSource <: CLawSource
     A::Float64 # wave amplitude
     k::Float64 # wavenumber times two pi (CHANGE THIS LATER TO MAKE IT CONSISTENT WITH SIN1STATE)

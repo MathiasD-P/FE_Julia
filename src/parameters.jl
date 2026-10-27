@@ -261,6 +261,8 @@ function parse_parameters_initialcondition_and_source(param::parameters) # THIS 
         source = GassnerBurgersSource()
     elseif param.sourcename == "StrangeBurgers"
         source = StrangeBurgersSource(param.strangecoeff...)
+    elseif param.sourcename == "ForcedBurgulence"
+        source = ForcedBurgulenceSource()
     elseif param.sourcename == "GassnerEuler"
         source = GassnerEulerSource()
     elseif isnothing(param.sourcename)
@@ -292,6 +294,8 @@ function parse_parameters_initialcondition_and_source(param::parameters) # THIS 
         ic = GassnerBurgers(source)
     elseif param.ICname == "StrangeBurgers"
         ic = StrangeBurgers(source)
+    elseif param.ICname == "ForcedBurgulence"
+        ic = ForcedBurgulence(source)
     elseif param.ICname == "GassnerEuler"
         ic = GassnerEuler(source)
     else
