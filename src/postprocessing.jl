@@ -20,6 +20,15 @@ function local_L2error(u, t, epts, chie, dg::DG, PDE::Burgers, ic::GassnerBurger
     return error2
 end
 
+function local_L2error(u, t, epts, chie, dg::DG, PDE::Burgers, ic::StrangeBurgers, BChandler::Dict, source::StrangeBurgersSource)
+    if !(isperiodic(BChandler) && isperiodicunitinterval(dg.mesh))
+        error("Error for Burgers can only be computed for periodic BCs on the unit interval!")
+    end
+
+    error2 = (block_matmul(chie, u, dg.mesh.Nel) .- (source.A .* sin.(source.alpha .* sin.(source.beta .* epts) .+ source.lambda .* epts .+ source.delta .- source.c * t) .+ source.av)).^2
+    return error2
+end
+
 function local_L2error(u, t, epts, chie, dg::DG, PDE::Burgers, ic::Sin1State, BChandler::Dict, source::Nothing)
     if !(isperiodic(BChandler) && isperiodicunitinterval(dg.mesh))
         error("Error for Burgers can only be computed for periodic BCs on the unit interval!")
