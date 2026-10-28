@@ -197,25 +197,25 @@ function plot_solutions(DGnames, p, node_name, Nel)
     return plt_sol
 end
 
-# DGnames = ["DGExact", "DGFluxDiff", "DGArtVisc", "DGAddRes"]
-# p=5
-# node_name = "GLL"
-# Nrange = [12, 14, 16, 18, 20, 40, 80, 160]
+DGnames = ["DGExact", "DGFluxDiff", "DGArtVisc", "DGAddRes"]
+p=5
+node_name = "GLL"
+Nrange = [12, 14, 16, 18, 20, 40, 80, 160]
 
-# outputsGLL = compute_error(DGnames, p, node_name, Nrange)
-# pltGLL = plot_error(DGnames, outputsGLL)
-# display(pltGLL)
-# savefig(pltGLL, "outputs/L2error_StrangeBurgers" * node_name * "p" * string(p) * ".pdf")
+outputsGLL = compute_error(DGnames, p, node_name, Nrange)
+pltGLL = plot_error(DGnames, outputsGLL)
+display(pltGLL)
+savefig(pltGLL, "outputs/L2error_StrangeBurgers" * node_name * "p" * string(p) * ".pdf")
 
-# DGnames = ["DGExact", "DGFluxDiff", "DGArtVisc", "DGAddRes"]
-# p=5
-# node_name = "GL"
-# Nrange = [12, 14, 16, 18, 20, 40, 80, 160]
+DGnames = ["DGExact", "DGFluxDiff", "DGArtVisc", "DGAddRes"]
+p=5
+node_name = "GL"
+Nrange = [12, 14, 16, 18, 20, 40, 80, 160]
 
-# outputsGL = compute_error(DGnames, p, node_name, Nrange)
-# pltGL = plot_error(DGnames, outputsGL)
-# display(pltGL)
-# savefig(pltGL, "outputs/L2error_StrangeBurgers" * node_name * "p" * string(p) * ".pdf")
+outputsGL = compute_error(DGnames, p, node_name, Nrange)
+pltGL = plot_error(DGnames, outputsGL)
+display(pltGL)
+savefig(pltGL, "outputs/L2error_StrangeBurgers" * node_name * "p" * string(p) * ".pdf")
 
 DGnames = ["DGExact", "DGFluxDiff", "DGArtVisc", "DGAddRes"]
 p=4
@@ -237,21 +237,37 @@ pltGL = plot_error(DGnames, outputsGL)
 display(pltGL)
 savefig(pltGL, "outputs/L2error_StrangeBurgers" * node_name * "p" * string(p) * ".pdf")
 
-# DGnames = ["DGExact", "DGFluxDiff", "DGArtVisc", "DGAddRes"]
-# p=5
-# node_name = "GLL"
-# Nel = 16
-# plt = plot_solutions(DGnames, p, node_name, Nel)
-# display(plt)
-# savefig(pltGL, "outputs/solution_StrangeBurgers" * node_name * "p" * string(p) * ".pdf")
+DGnames = ["DGExact", "DGFluxDiff", "DGArtVisc", "DGAddRes"]
+p=4
+node_name = "GLL"
+Nel = 16
+plt = plot_solutions(DGnames, p, node_name, Nel)
+display(plt)
+savefig(plt, "outputs/solution_StrangeBurgers" * node_name * "p" * string(p) * ".pdf")
 
-# DGnames = ["DGExact", "DGFluxDiff", "DGArtVisc", "DGAddRes"]
-# p=5
-# node_name = "GL"
-# Nel = 16
-# plt = plot_solutions(DGnames, p, node_name, Nel)
-# display(plt)
-# savefig(pltGL, "outputs/solution_StrangeBurgers" * node_name * "p" * string(p) * ".pdf")
+DGnames = ["DGExact", "DGFluxDiff", "DGArtVisc", "DGAddRes"]
+p=4
+node_name = "GL"
+Nel = 16
+plt = plot_solutions(DGnames, p, node_name, Nel)
+display(plt)
+savefig(plt, "outputs/solution_StrangeBurgers" * node_name * "p" * string(p) * ".pdf")
+
+DGnames = ["DGExact", "DGFluxDiff", "DGArtVisc", "DGAddRes"]
+p=5
+node_name = "GLL"
+Nel = 16
+plt = plot_solutions(DGnames, p, node_name, Nel)
+display(plt)
+savefig(plt, "outputs/solution_StrangeBurgers" * node_name * "p" * string(p) * ".pdf")
+
+DGnames = ["DGExact", "DGFluxDiff", "DGArtVisc", "DGAddRes"]
+p=5
+node_name = "GL"
+Nel = 16
+plt = plot_solutions(DGnames, p, node_name, Nel)
+display(plt)
+savefig(plt, "outputs/solution_StrangeBurgers" * node_name * "p" * string(p) * ".pdf")
 
 # DGnames = ["DGStd", "DGExact"]
 # p=8
