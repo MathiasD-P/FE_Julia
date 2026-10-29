@@ -268,7 +268,7 @@ function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Union{Ab
     fn = Euler_physflux(up, PDE)
 
     for dir in 1:PDE.dim
-        fn[dir] .= fn[dir] .+ fp[dir]
+        fn[dir] .= 0.5 .* (fn[dir] .+ fp[dir])
     end
 
     return fn
@@ -279,7 +279,7 @@ function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Union{Ab
 end
 
 function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::AbstractMatrix, numflux::ESChandrashekarDissipNumFlux, PDE::EulerPerfGas)
-    f = Euler_numflux_Chandrashekar(up, un, PDE)
+    f = Euler_numflux_Chandrashekar(un, up, PDE)
     d = Euler_numdissip_ES(un, up, nphys, PDE)
 
     for dir in 1:PDE.dim
@@ -287,6 +287,20 @@ function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Abstract
     end
 
     return f
+end
+
+function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::AbstractMatrix, numflux::LFNumFlux, PDE::EulerPerfGas)
+    fp = Euler_physflux(up, PDE)
+    fn = Euler_physflux(un, PDE)
+    d = Euler_numdissip_LFDavis(un, up, nphys, PDE)
+
+    for dir in 1:PDE.dim
+        fn[dir] .= 0.5 .* (fn[dir] .+ fp[dir]) .+ d[dir]
+    end
+
+    error("This numerical flux has not been validated")
+
+    return fn
 end
 
 #####################################################################
@@ -629,7 +643,7 @@ function Euler_cvar_Hessian(u::AbstractVector, PDE::EulerPerfGas) # copied from 
         K[1,:] = u
         K[2,2] = u[2]^2 / u[1] + p
         K[2,3] = u[2] / u[1] * (u[end] + p)
-        K[3,3] = u[1] * (a2 / (PDE.gamma-1) + 0.5 * u[2]^2 / u[1])^2 - a2 * p / (PDE.gamma - 1)
+        K[3,3] = u[1] * (a2 / (PDE.gamma-1) + 0.5 * (u[2] / u[1])^2)^2 - a2 * p / (PDE.gamma - 1)
 
         copyto!(K, Symmetric(K, :U)) # symmetrize
 
@@ -765,8 +779,9 @@ function Euler_numdissip_ES(un::AbstractMatrix, up::AbstractMatrix, nphys::Abstr
 
             rholn = logmean(up[index,1], un[index,1])
             betaln = logmean(0.5 * up[index,1] / pn, 0.5 * un[index,1] / pp)
+            pavg = (up[index,1] + un[index,1]) / (up[index,1] / pp + un[index,1] / pn)
 
-            abar = sqrt(0.5 * PDE.gamma * (pn + pp)/rholn)
+            abar = sqrt(PDE.gamma * pavg / rholn)
             hbar = PDE.gamma/(2.0*betaln*(PDE.gamma-1.0)) + 0.5 * vel2avg
 
             R[2,1] = velavg - abar ; R[2,2] = velavg ; R[2,3] = velavg + abar
@@ -800,8 +815,9 @@ function Euler_numdissip_ES(un::AbstractVector, up::AbstractVector, nphys::Abstr
 
         rholn = logmean(up[1], un[1])
         betaln = logmean(0.5 * up[1] / pn, 0.5 * un[1] / pp)
+        pavg = (up[1] + un[1]) / (up[1] / pp + un[1] / pn)
 
-        abar = sqrt(0.5 * PDE.gamma * (pn + pp)/rholn)
+        abar = sqrt(PDE.gamma * pavg / rholn)
         hbar = PDE.gamma/(2.0*betaln*(PDE.gamma-1.0)) + 0.5 * vel2avg
 
         R = [1.0 1.0 1.0;
@@ -818,3 +834,40 @@ function Euler_numdissip_ES(un::AbstractVector, up::AbstractVector, nphys::Abstr
         error("Chandrashekar flux only implemented in 1D.")
     end
 end
+
+function Euler_numdissip_LFDavis(un::AbstractMatrix, up::AbstractMatrix, nphys::AbstractMatrix, PDE::EulerPerfGas) # copied from (Gassner, Kopriva, Winters, Hindenlang, 2018)
+    if PDE.dim == 1
+
+        ujump = (up - un) .* nphys # WOULD BE MUCH MORE EFFICIENT IF WE COULD USE THE ENTROPY VARS AS INPUT
+
+        pp = Euler_pressure(up, PDE)
+        pn = Euler_pressure(un, PDE)
+
+        cp = sqrt.(PDE.gamma .* pp ./ up[:,1])
+        cn = sqrt.(PDE.gamma .* pn ./ un[:,1])
+
+        return (-0.5 .* ujump .* max.(abs.(up[:,2] ./ up[:,1]) .+ cp, abs.(un[:,2] ./ un[:,1]) .+ cn),)
+        # return (-0.5 .* ujump .* (max.(abs.(up[:,2] ./ up[:,1]), abs.(un[:,2] ./ un[:,1])) .+ max.(cp, cn)),)
+    else
+        error("LF dissipation only implemented in 1D.")
+    end
+end
+
+
+# @inline function max_abs_speed(u_ll, u_rr, orientation::Integer,
+#                                equations::CompressibleEulerEquations1D)
+#     rho_ll, rho_v1_ll, rho_e_total_ll = u_ll
+#     rho_rr, rho_v1_rr, rho_e_total_rr = u_rr
+
+#     # Calculate primitive variables and speed of sound
+#     v1_ll = rho_v1_ll / rho_ll
+#     v_mag_ll = abs(v1_ll)
+#     p_ll = (equations.gamma - 1) * (rho_e_total_ll - 0.5f0 * rho_ll * v_mag_ll^2)
+#     c_ll = sqrt(equations.gamma * p_ll / rho_ll)
+#     v1_rr = rho_v1_rr / rho_rr
+#     v_mag_rr = abs(v1_rr)
+#     p_rr = (equations.gamma - 1) * (rho_e_total_rr - 0.5f0 * rho_rr * v_mag_rr^2)
+#     c_rr = sqrt(equations.gamma * p_rr / rho_rr)
+
+#     return max(v_mag_ll + c_ll, v_mag_rr + c_rr)
+# end
