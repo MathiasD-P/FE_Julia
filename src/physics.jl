@@ -298,6 +298,8 @@ function compute_numflux(un::AbstractMatrix, up::AbstractMatrix, nphys::Abstract
         fn[dir] .= 0.5 .* (fn[dir] .+ fp[dir]) .+ d[dir]
     end
 
+    error("This numerical flux has not been validated")
+
     return fn
 end
 
