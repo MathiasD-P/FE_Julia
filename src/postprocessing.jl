@@ -87,6 +87,23 @@ function local_L2error(u, t, epts, chie, dg::DG, PDE::EulerPerfGas, ic::Isentrop
     return error2
 end
 
+function local_L2error(u, t, epts, chie, dg::DG, PDE::EulerPerfGas, ic::StrangeEuler, BChandler::Dict, source::StrangeEulerSource)
+    if !(isperiodic(BChandler) && isperiodicunitinterval(dg.mesh))
+        error("Error for Euler can only be computed for periodic BCs on the unit interval!")
+    end
+
+    solution = zeros((size(epts,1), dg.Nstates))
+
+    solution[:,1] .= 1.0
+    solution[:,2] .= source.A .* sin.(source.alpha .* sin.(source.beta .* epts) .+ source.lambda .* epts .+ source.delta .- source.c * t) .+ source.av
+    solution[:,3] .= 1.0 / (PDE.gamma - 1) .+ 0.5 .* solution[:,2].^2;
+
+    solution = 
+
+    error2 = (block_matmul(chie, u, dg.mesh.Nel) .- solution).^2
+    return error2
+end
+
 
 function compute_L2error(u, t, enodes::AbstractNodes, ic::InitialCondition, dg::DG, physics::PhysProp)
      if isa(dg.mesh, LMesh)

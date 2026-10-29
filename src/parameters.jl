@@ -49,7 +49,7 @@ mutable struct parameters
     k::Union{Real,Nothing} # wavenumber for sinusoidal initializations
     phi::Union{Real,Nothing} # phase shift for sinusoidal initializations
     av::Union{Real,Nothing} # average for sinusoidal initializations
-    strangecoeff::Union{Vector{Real},Nothing} # parameters for strange Burgers
+    strangecoeff::Vector{Union{Nothing, Real}} # parameters for strange Burgers
     kmax # wavenumber cutoff for Burgulence
 
     function parameters(;
@@ -94,7 +94,7 @@ mutable struct parameters
                      k=nothing,
                      phi=nothing,
                      av=nothing,
-                     strangecoeff=nothing,
+                     strangecoeff=[nothing],
                      kmax=nothing)
 
                      new(pdetype,
@@ -265,6 +265,8 @@ function parse_parameters_initialcondition_and_source(param::parameters) # THIS 
         source = ForcedBurgulenceSource()
     elseif param.sourcename == "GassnerEuler"
         source = GassnerEulerSource()
+    elseif param.sourcename == "StrangeEuler"
+        source = StrangeEulerSource(param.strangecoeff...)
     elseif isnothing(param.sourcename)
         source = nothing
     else
@@ -298,6 +300,8 @@ function parse_parameters_initialcondition_and_source(param::parameters) # THIS 
         ic = ForcedBurgulence(source)
     elseif param.ICname == "GassnerEuler"
         ic = GassnerEuler(source)
+    elseif param.ICname == "StrangeEuler"
+        ic = StrangeEuler(source)
     else
         error("The initial condition $(param.ICname) is not defined.")
     end

@@ -504,6 +504,90 @@ function compute_source(source::GassnerEulerSource, PDE::EulerPerfGas, dg::DG, p
 end
 
 
+struct StrangeEulerSource <: CLawSource
+    A::Float64
+    alpha::Float64
+    beta::Float64
+    lambda::Float64
+    delta::Float64
+    c::Float64
+    av::Float64
+
+    function StrangeEulerSource(A::Union{Float64,Nothing}=nothing, alpha::Union{Float64,Nothing}=nothing, beta::Union{Float64,Nothing}=nothing, lambda::Union{Float64,Nothing}=nothing, delta::Union{Float64,Nothing}=nothing, c::Union{Float64,Nothing}=nothing, av::Union{Float64,Nothing}=nothing)
+        # These are the parameters to break (6)-GLL DGAddRes with 16 elements at t = 3.0
+        Adefault = 1.1
+        alphadefault = 2.0
+        betadefault = 2 * pi
+        lambdadefault = 4 * pi
+        deltadefault = 1.0
+        cdefault = 1.0
+        avdefault = 0.01
+
+        new(
+            something(A, Adefault),
+            something(alpha, alphadefault),
+            something(beta, betadefault),
+            something(lambda, lambdadefault),
+            something(delta, deltadefault),
+            something(c, cdefault),
+            something(av, avdefault)
+        )
+    end
+end
+
+struct StrangeEuler <: DerivedInitialCondition
+    source::StrangeEulerSource
+end
+
+function initialize_states(ic::StrangeEuler, dg::DG, PDE::EulerPerfGas, pts = nothing)
+    if isnothing(pts)
+        pts = dg.bpts
+    end
+
+    if PDE.dim != 1 || dg.dim != 1
+        error("StrangeEuler only works in 1D!")
+    end
+
+    u = zeros((size(pts,1), dg.Nstates))
+    # u[:,1] .= ic.source.A .* sin.(ic.source.alpha .* sin.(ic.source.beta .* pts) .+ ic.source.lambda .* pts .+ ic.source.delta) .+ ic.source.av
+    # u[:,2] .= u[:,1]
+    # u[:,3] .= u[:,1].^2
+
+    # u[:,1] .= 1.0
+    # u[:,2] .= ic.source.A .* sin.(ic.source.alpha .* sin.(ic.source.beta .* pts) .+ ic.source.lambda .* pts .+ ic.source.delta) .+ ic.source.av
+    # u[:,3] .= u[:,2].^2
+
+    u[:,1] .= 1.0
+    u[:,2] .= ic.source.A .* sin.(ic.source.alpha .* sin.(ic.source.beta .* pts) .+ ic.source.lambda .* pts .+ ic.source.delta) .+ ic.source.av
+    u[:,3] .= 1.0 / (PDE.gamma - 1) .+ 0.5 .* u[:,2].^2;
+
+
+    return u
+end
+
+function compute_source(source::StrangeEulerSource, PDE::EulerPerfGas, dg::DG, pts::Matrix{Float64}, time::Float64)
+    Q = Matrix{Float64}(undef, (size(pts,1), dg.Nstates))
+
+    if PDE.dim != 1 || dg.dim != 1
+        error("StrangeBurgersSource only works in 1D!")
+    end
+
+    # @. Q[:,1] = source.A*cos(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts))*(source.lambda - source.c + source.alpha*source.beta*cos(source.beta*pts))
+    # @. Q[:,2] = source.A*cos(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts))*(source.lambda + source.alpha*source.beta*cos(source.beta*pts)) - source.A* source.c*cos(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts)) + (source.A*cos(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts))*(source.lambda + source.alpha*source.beta*cos(source.beta*pts))*(PDE.gamma - 1)*(4*source.av + 4*source.A*sin(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts)) - 1))/2
+    # @. Q[:,3] = (source.A*cos(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts))*(source.lambda - 4* source.c*source.av - PDE.gamma*source.lambda - 4*source.A* source.c*sin(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts)) + 4*PDE.gamma*source.lambda*source.av + source.alpha*source.beta*cos(source.beta*pts) - source.alpha*source.beta*PDE.gamma*cos(source.beta*pts) + 4*source.A*PDE.gamma*source.lambda*sin(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts)) + 4*source.alpha*source.beta*PDE.gamma*source.av*cos(source.beta*pts) + 4*source.A*source.alpha*source.beta*PDE.gamma*sin(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts))*cos(source.beta*pts)))/2
+
+    # @. Q[:,1] = source.A*cos(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts))*(source.lambda + source.alpha*source.beta*cos(source.beta*pts))
+    # @. Q[:,2] = 2*source.A*cos(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts))*(source.av + source.A*sin(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts)))*(source.lambda + source.alpha*source.beta*cos(source.beta*pts)) - source.A*source.c*cos(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts)) + source.A*cos(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts))*(source.av + source.A*sin(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts)))*(source.lambda + source.alpha*source.beta*cos(source.beta*pts))*(PDE.gamma - 1)
+    # @. Q[:,3] = 3*source.A*cos(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts))*(source.av + source.A*sin(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts)))^2*(source.lambda + source.alpha*source.beta*cos(source.beta*pts)) - 2*source.A*source.c*cos(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts))*(source.av + source.A*sin(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts))) + (3*source.A*cos(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts))*(source.av + source.A*sin(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts)))^2*(source.lambda + source.alpha*source.beta*cos(source.beta*pts))*(PDE.gamma - 1))/2
+
+    @. Q[:,1] = source.A*cos(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts))*(source.lambda + source.alpha*source.beta*cos(source.beta*pts))
+    @. Q[:,2] = 2*source.A*cos(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts))*(source.av + source.A*sin(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts)))*(source.lambda + source.alpha*source.beta*cos(source.beta*pts)) - source.A*source.c*cos(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts))
+    @. Q[:,3] = source.A*cos(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts))*(source.lambda + source.alpha*source.beta*cos(source.beta*pts)) + source.A*cos(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts))*(source.lambda + source.alpha*source.beta*cos(source.beta*pts))*(1/(PDE.gamma - 1) + (source.av + source.A*sin(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts)))^2/2) + source.A*cos(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts))*(source.av + source.A*sin(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts)))^2*(source.lambda + source.alpha*source.beta*cos(source.beta*pts)) - source.A*source.c*cos(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts))*(source.av + source.A*sin(source.delta - source.c*time + source.lambda*pts + source.alpha*sin(source.beta*pts)))
+
+    return Q
+end
+
+
 # function initialize_states(dg::DG, param::parameters, pts = nothing)
 #     flag_bpts = false
 
