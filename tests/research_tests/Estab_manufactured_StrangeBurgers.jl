@@ -124,6 +124,8 @@ function plot_error(DGnames, outputs)
         plot!(plt, outputs[myDG][:,1], outputs[myDG][:,2], linestyle=:dash, color=mycolor, label=false)
     end
 
+    plot!(plt, outputs["DGAddRes"][end-1:end,1], 2 .* outputs["DGAddRes"][end-1,2] .* (outputs["DGAddRes"][end-1:end,1] ./ outputs["DGAddRes"][end-1,1]).^(-(p+1)), label=L"p+1", color=:black, linestyle=:dash)
+
     return plt
 end
 
