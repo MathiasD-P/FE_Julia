@@ -153,6 +153,54 @@ function initialize_states(ic::BurgulenceIC, dg::DG, PDE::GoverningPDE, pts = no
 end
 
 
+struct PandeyBurgulence <: InitialCondition
+    A::Float64
+    rho::Float64
+    av::Float64
+    kmax::Int64
+    seed::Int64
+
+    function PandeyBurgulence(A::Union{Float64,Nothing}=nothing, rho::Union{Float64,Nothing}=nothing, av::Union{Float64,Nothing}=nothing, kmax::Union{Float64,Nothing}=nothing, seed::Union{Float64,Nothing}=nothing)
+        Adefault = 2/3 * sqrt(pi)
+        rhodefault = 0.1
+        avdefault = 0.75
+        kmaxdefault = 2048
+        seeddefault = 1234
+
+        new(something(A, Adefault), something(rho, rhodefault), something(av, avdefault), something(kmax, kmaxdefault), something(seed, seeddefault))
+    end
+end
+
+function initialize_states(ic::PandeyBurgulence, dg::DG, PDE::GoverningPDE, pts = nothing)
+    if isnothing(pts)
+        pts = dg.bpts
+    end
+
+    if PDE.Nstates != 1
+        error("PandeyBurgulence only works for 1 state problems!")
+    end
+
+    if PDE.dim != 1 || dg.dim != 1
+        error("PandeyBurgulence only works in 1D!")
+    end
+
+    # First we generate random phase angles
+    Random.seed!(ic.seed)
+    phase = 2*pi .* rand(Float64, ic.kmax)
+
+    # Assemble initial conditions
+    u = ic.av .* ones((size(pts,1), dg.Nstates))
+
+    for k = 1:ic.kmax
+        magnitude = sqrt(2 * ic.A * (k)^4 * ic.rho^5 * exp(-(k)^2 * ic.rho^2))
+
+        @. u = u + magnitude * cos(2*pi * k * pts - phase[k])
+    end
+
+    return u
+end
+
+
 # Multi state initializations
 
 struct IsentropicDensityWave <: InitialCondition # Classical test case used by (Chan 2025)

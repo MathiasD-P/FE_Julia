@@ -39,7 +39,7 @@ mutable struct parameters
     calc_entropy::Bool
     OOAtest::Bool
     Nrefinements::Union{Integer,Nothing}
-    dtlim::Union{Vector{Real}, Nothing}
+    dtlim::Union{Vector{<:Real}, Nothing}
     maxval::Union{Real,Nothing}
 
     # And all other physical constants for the problem...
@@ -284,6 +284,8 @@ function parse_parameters_initialcondition_and_source(param::parameters) # THIS 
         ic = SuperOscillation1State()
     elseif param.ICname == "Burgulence"
         ic = BurgulenceIC(param.kmax)
+    elseif param.ICname == "PandeyBurgulence"
+        ic = PandeyBurgulence()
     elseif param.ICname == "IsentropicDensityWave"
         ic = IsentropicDensityWave()
     elseif param.ICname == "ChanWave"
